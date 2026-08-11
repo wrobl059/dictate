@@ -146,7 +146,41 @@ permission; verify actionable, content-free results.
 
 ---
 
-### User Story 6 - Prevent Misplaced Sensitive Text (Priority: P2)
+### User Story 6 - Install the Default Local Pipeline (Priority: P1)
+
+A new user can explicitly ask Dictate to acquire the dependencies required for its supported default
+local pipeline, including the local speech-recognition runtime and model, the local cleanup runtime,
+and its default cleanup model. The user does not need to find, download, and connect those required
+components manually before using Dictate.
+
+**Why this priority**: A complete, supported default pipeline is essential to a usable fresh
+installation and fulfills the product's opinionated-defaults promise.
+
+**Independent Test**: On a supported computer without one or more required default components, run
+`dictate setup --install-dependencies`, approve any operating-system authorization when needed, and
+verify that setup acquires missing components, retains usable existing components, and reports ready
+only after the default local pipeline is verified.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user explicitly runs `dictate setup --install-dependencies` and required components are
+   missing, **When** the computer can access the required acquisition sources, **Then** setup acquires
+   the supported local speech-recognition runtime and its default model, the supported local cleanup
+   runtime, and Dictate's default cleanup model before performing readiness checks.
+2. **Given** one or more required components are already installed and usable, **When** the user runs
+   `dictate setup --install-dependencies`, **Then** setup retains those components and acquires only
+   the missing or unusable required components.
+3. **Given** the user runs `dictate setup` without the dependency-installation option, **When** a
+   required component is missing, **Then** setup reports the missing component and how to request the
+   built-in installation without acquiring software or models.
+4. **Given** acquisition fails because of unavailable network access, unsupported platform capability,
+   insufficient permissions, or a failed download, **When** setup finishes, **Then** it reports the
+   affected component and an actionable content-free remedy, does not claim readiness, and does not
+   attempt a cloud fallback for later dictation.
+
+---
+
+### User Story 7 - Prevent Misplaced Sensitive Text (Priority: P2)
 
 A user begins dictation in one field but changes focus before processing finishes. The service avoids
 typing confidential output into an unrelated destination and gives the user a deliberate, local way to
@@ -187,6 +221,13 @@ available for explicit recovery.
   entry and a global entry uses the project-specific spelling for that session.
 - The user changes writing style, microphone, or trigger while a dictation is in progress; the active
   dictation completes or fails under its starting settings, and the new setting applies to later use.
+- A dependency installation is interrupted or only partially completes; a later setup run identifies
+  incomplete or unusable components, does not treat them as ready, and can safely resume acquisition.
+- The computer cannot install a required component because the platform is unsupported, disk space is
+  insufficient, required authorization is denied, or acquisition sources are unavailable; setup names
+  the affected component, preserves usable existing components, and offers a content-free remedy.
+- The default cleanup model or speech-recognition model is acquired but cannot be used locally; setup
+  reports that verification failed and does not report the service as ready.
 
 ## Requirements *(mandatory)*
 
@@ -244,6 +285,21 @@ available for explicit recovery.
   local processing, a usable microphone, global trigger monitoring, and safe text-placement capability.
   Destination-context access is optional: if unavailable, setup MUST report the limitation and
   platform-appropriate remediation without preventing normal dictation without context.
+- **FR-019a**: When a user explicitly invokes `dictate setup --install-dependencies`, setup MUST
+  acquire every missing or unusable dependency required by the supported default local pipeline. This
+  includes the supported local speech-recognition runtime and its default model, the supported local
+  cleanup runtime, and Dictate's default cleanup model.
+- **FR-019b**: Dependency acquisition MUST be initiated only by the explicit dependency-installation
+  option. Setup without that option MUST remain a verification and diagnostic operation and MUST
+  explain how to request built-in acquisition when a required default component is missing.
+- **FR-019c**: Before reporting readiness after dependency acquisition, setup MUST verify that every
+  required acquired or retained component is usable in the local default pipeline. It MUST retain
+  usable existing components and MUST NOT report readiness if any required component is missing,
+  incomplete, unusable, or cannot be verified.
+- **FR-019d**: If dependency acquisition cannot complete, setup MUST identify the affected component
+  and provide content-free, actionable remediation for unavailable network access, unsupported
+  platform capability, denied authorization, insufficient storage, or acquisition failure. It MUST
+  preserve usable existing components and MUST NOT enable a cloud fallback for normal dictation.
 - **FR-020**: Diagnostics MUST report actionable readiness and failure information without exposing
   audio, transcripts, destination context, cleanup instructions, or generated text.
 - **FR-021**: The system MUST preserve normal dictation privacy and local-only behavior when a
@@ -272,6 +328,8 @@ available for explicit recovery.
   automatic placement could not be determined.
 - **Diagnostic result**: Content-free status and actionable remediation information for prerequisites,
   permissions, audio inputs, keyboard integration, local processing, and placement capability.
+- **Dependency installation result**: Content-free status for each required default component,
+  including whether it was retained, acquired, verified, or needs user remediation.
 
 ## Success Criteria *(mandatory)*
 
@@ -294,13 +352,30 @@ available for explicit recovery.
 - **SC-006**: On macOS, Windows, and Linux, a new user can complete guided setup, identify an available
   microphone, and obtain an actionable diagnostic result for a denied permission or unavailable device
   without exposing user content.
+- **SC-007**: On macOS, Windows, and Linux test environments where supported acquisition sources are
+  available, 100% of clean-install test runs can use `dictate setup --install-dependencies` to obtain
+  and verify the supported default local pipeline without manually downloading or configuring its
+  required local runtimes or models.
+- **SC-008**: In 20 installation tests with a pre-existing usable required component, setup preserves
+  that component and completes readiness verification without requiring its manual reinstallation in
+  100% of runs.
+- **SC-009**: In 20 simulated acquisition-failure tests, 100% of results identify the affected
+  component, provide an actionable content-free remedy, and do not report Dictate as ready.
 
 ## Assumptions
 
 - The first release supports one active dictation session at a time and targets text fields in
   applications that allow the operating system's supported text-placement mechanisms.
 - Normal operation has all required local components and models installed during explicit setup or
-  update; obtaining them may require network access only when the user explicitly initiates it.
+  update. `dictate setup --install-dependencies` is the supported way to obtain the default required
+  local runtimes and models; obtaining them may require network access only when the user explicitly
+  initiates it.
+- The supported default local pipeline has one documented default speech-recognition model and one
+  documented default cleanup model. Users may still install or configure non-default components through
+  future advanced workflows, which are outside this feature's dependency-installation scope.
+- Users running dependency installation have sufficient disk space and can grant any required
+  operating-system authorization. When either condition is not met, setup reports remediation rather
+  than bypassing platform protections.
 - Natural is the default style; built-in styles are available immediately, while user-defined custom
   styles are a future extension and are not required for this feature.
 - The default microphone is the operating-system default at the start of a session. An explicit device

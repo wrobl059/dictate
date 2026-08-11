@@ -36,4 +36,7 @@
 - The recovery-result interaction is intentionally outcome-based: it must be explicit, local, and safe
   when destination placement cannot be confirmed. Its detailed command-line interaction is a planning
   decision, not an implementation requirement.
+- Built-in dependency acquisition is explicitly opt-in and limited to the supported default local
+  pipeline. The specification covers outcomes, safe failure, and verification rather than prescribing
+  installation mechanisms; normal dictation remains offline after setup.
 
