@@ -8,25 +8,25 @@
 
 ## Phase 1: Setup and Foundations
 
-- [ ] T001 Create `pyproject.toml` for Python 3.11+ with only `sounddevice` and `pynput`; `python -m dictate --help` exposes `setup`, `serve`, `doctor`, and `devices`.
-- [ ] T002 Create the package/test skeleton described in `plan.md`; `unittest` discovers an empty passing suite.
-- [ ] T003 Implement TOML defaults, text dictionaries, atomic preference writes, and state transitions; unit tests prove Natural/default microphone/default trigger selection and content clearing on every terminal state.
-- [ ] T004 Implement shared readiness checks for local runtimes/models, microphone, trigger, placement, and optional context capability; unit tests distinguish required readiness failure from non-blocking context limitation.
-- [ ] T005 Implement loopback-only endpoint validation and metadata-only logging; unit tests prove non-loopback inference is rejected before content can be sent.
-- [ ] T006 Define the narrow platform adapter contract for target snapshots, optional context, permissions, hotkeys, insertion, and explicit recovery.
+- [X] T001 Create `pyproject.toml` for Python 3.11+ with only `sounddevice` and `pynput`; `python -m dictate --help` exposes `setup`, `serve`, `doctor`, and `devices`.
+- [X] T002 Create the package/test skeleton described in `plan.md`; `unittest` discovers an empty passing suite.
+- [X] T003 Implement TOML defaults, text dictionaries, atomic preference writes, and state transitions; unit tests prove Natural/default microphone/default trigger selection and content clearing on every terminal state.
+- [X] T004 Implement shared readiness checks for local runtimes/models, microphone, trigger, placement, and optional context capability; unit tests distinguish required readiness failure from non-blocking context limitation.
+- [X] T005 Implement loopback-only endpoint validation and metadata-only logging; unit tests prove non-loopback inference is rejected before content can be sent.
+- [X] T006 Define the narrow platform adapter contract for target snapshots, optional context, permissions, hotkeys, insertion, and explicit recovery.
 
 ## Phase 2: P1 Complete Safe Local Dictation Slice
 
 **Goal**: Prove press → target snapshot → in-memory audio → local ASR → local Ollama cleanup → target revalidation → insert or explicit recovery.
 
-- [ ] T007 Implement default-microphone in-memory PCM capture and press/release lifecycle; unit tests prove press starts capture, release stops it, and empty capture inserts nothing.
-- [ ] T008 Implement supervised loopback whisper-server with resident model and memory-backed ASR submission; integration tests prove readiness, successful local transcription, and content-free local failure.
-- [ ] T009 Implement loopback Ollama cleanup using the blessed model, `think: false`, deterministic options, bounded context, keep-alive, and output-only validation; integration tests prove transformed text is returned and no answer is generated.
-- [ ] T010 Implement generic `pynput` press/release monitoring, target snapshot, target revalidation, and injection; unit tests prove an unverified target never receives injected text.
-- [ ] T011 Implement in-process recovery: on unsafe placement retain one final result for `dictate serve --recover` to print once to stdout, clear it immediately after read/timeout/exit, and never use clipboard; acceptance tests prove this lifecycle.
-- [ ] T012 Wire `dictate serve` through the complete pipeline with an intentionally empty dictionary in this first slice; integration tests prove ASR and Ollama are both mandatory stages.
-- [ ] T013 Add focus-change acceptance coverage: begin in target A, change to B, prove B receives no text and recovery is required.
-- [ ] T014 Add an observable offline end-to-end acceptance harness that blocks all non-loopback socket connections for the service process while allowing required loopback runtimes; prove the full pipeline still inserts output.
+- [X] T007 Implement default-microphone in-memory PCM capture and press/release lifecycle; unit tests prove press starts capture, release stops it, and empty capture inserts nothing.
+- [X] T008 Implement supervised loopback whisper-server with resident model and memory-backed ASR submission; integration tests prove readiness, successful local transcription, and content-free local failure.
+- [X] T009 Implement loopback Ollama cleanup using the blessed model, `think: false`, deterministic options, bounded context, keep-alive, and output-only validation; integration tests prove transformed text is returned and no answer is generated.
+- [X] T010 Implement generic `pynput` press/release monitoring, target snapshot, target revalidation, and injection; unit tests prove an unverified target never receives injected text.
+- [X] T011 Implement in-process recovery: on unsafe placement retain one final result for `dictate serve --recover` to print once to stdout, clear it immediately after read/timeout/exit, and never use clipboard; acceptance tests prove this lifecycle.
+- [X] T012 Wire `dictate serve` through the complete pipeline with an intentionally empty dictionary in this first slice; integration tests prove ASR and Ollama are both mandatory stages.
+- [X] T013 Add focus-change acceptance coverage: begin in target A, change to B, prove B receives no text and recovery is required.
+- [X] T014 Add an observable offline end-to-end acceptance harness that blocks all non-loopback socket connections for the service process while allowing required loopback runtimes; prove the full pipeline still inserts output.
 
 ## Phase 3: Privacy and Faithful Cleanup
 

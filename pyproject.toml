@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dictate"
+version = "0.1.0"
+description = "Local-only push-to-talk dictation service"
+requires-python = ">=3.11"
+dependencies = [
+    "sounddevice==0.5.5",
+    "pynput==1.8.2",
+]
+
+[project.scripts]
+dictate = "dictate.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.unittest]
+start-directory = "tests"
+
