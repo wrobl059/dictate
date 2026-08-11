@@ -75,3 +75,74 @@ telemetry, databases, plugin/provider frameworks, or generalized backend abstrac
 - [ ] T038 Perform and record content-free macOS host validation for the full composed offline pipeline: trigger hold/release, default and unavailable microphone, required permissions/remediation, target verification/insertion/recovery, context limitation, 20 focus changes, and 20 warmed latency runs per FR-002, SC-001, SC-002, SC-005, SC-006, plan: platform matrix (missing)
 - [ ] T039 Perform and record content-free Windows host validation for the full composed offline pipeline: trigger hold/release, default and unavailable microphone, required permissions/remediation, target verification/insertion/recovery, context limitation, 20 focus changes, and 20 warmed latency runs per FR-002, SC-001, SC-002, SC-005, SC-006, plan: platform matrix (missing)
 - [ ] T040 Perform and record content-free Linux host validation for the full composed offline pipeline: trigger hold/release, default and unavailable microphone, required permissions/remediation, target verification/insertion/recovery, context limitation, 20 focus changes, and 20 warmed latency runs per FR-002, SC-001, SC-002, SC-005, SC-006, plan: platform matrix (missing)
+
+---
+
+## Phase 7: User Story 6 - Install the Default Local Pipeline (Priority: P1) 🎯
+
+**Goal**: A user explicitly invoking `dictate setup --install-dependencies` acquires or retains every
+required component of the supported local default pipeline, receives content-free per-component outcomes,
+and receives final readiness only after local verification succeeds.
+
+**Independent Test**: With deterministic fake package, download, and local runtime sources, invoke the
+installed command on a machine missing one or more default components. Verify ordered acquisition and
+verification; rerun to verify retention; then simulate network, authorization, storage, unsupported-platform,
+download, and post-acquisition verification failures to verify nonzero content-free outcomes and no ready
+claim.
+
+### Tests for User Story 6
+
+- [ ] T041 [P] [US6] Add failing ordered component-outcome, retention, interrupted-artifact cleanup, and content-free remediation tests for the injectable installer coordinator in `tests/unit/test_installer.py`.
+- [ ] T042 [P] [US6] Add failing round-trip, validation, atomic-write, and failed-install preservation tests for verified whisper executable/model preferences in `tests/unit/test_config_dictionary_session.py`.
+- [ ] T043 [P] [US6] Add failing macOS, Windows, and Linux acquisition-dispatch and unsupported/authorization/storage remediation tests in `tests/unit/test_platform_adapters.py`.
+- [ ] T044 [P] [US6] Add failing standard-library bootstrap tests proving only `setup --install-dependencies` repairs declared Python dependencies and all other commands remain non-mutating in `tests/unit/test_bootstrap.py`.
+
+### Implementation for User Story 6
+
+- [ ] T045 [US6] Extend validated atomic preferences with verified local `whisper-server` executable and default speech-model paths in `src/dictate/config.py` to satisfy `tests/unit/test_config_dictionary_session.py` (depends on T042).
+- [ ] T046 [US6] Add the minimal platform-specific external-runtime acquisition contract and content-free documented-route/unsupported remediation implementations in `src/dictate/platform/base.py`, `src/dictate/platform/macos.py`, `src/dictate/platform/windows.py`, and `src/dictate/platform/linux.py` to satisfy `tests/unit/test_platform_adapters.py` (depends on T043).
+- [ ] T047 [US6] Create the injected, ordered dependency discovery/acquisition/temporary-artifact cleanup coordinator and content-free component-result model for Python dependencies, whisper.cpp runtime/model, and Ollama runtime/model in `src/dictate/installer.py` to satisfy `tests/unit/test_installer.py` (depends on T041, T045, T046).
+- [ ] T048 [US6] Extend local ASR/readiness composition so retained or acquired whisper executable/model paths are locally verified and the verified `whisper-server` command is reusable by service startup in `src/dictate/asr.py`, `src/dictate/readiness.py`, and `src/dictate/service.py` (depends on T047; do not duplicate T029's general production composition root or T032's non-installer capability boundaries).
+- [ ] T049 [US6] Create the standard-library-only explicit-install dispatcher in `src/dictate/bootstrap.py`, route `python -m dictate` through it in `src/dictate/__main__.py`, and route the console script through it in `pyproject.toml` to satisfy `tests/unit/test_bootstrap.py` (depends on T044, T047).
+- [ ] T050 [US6] Add the `setup --install-dependencies` parser branch, ordered content-free component output, bare-setup install recommendation, and final shared-readiness gating in `src/dictate/cli.py`; extend `tests/unit/test_cli.py` and `tests/unit/test_readiness_privacy.py` for flag scope, output/exit ordering, non-mutating bare setup, and non-blocking context limitations (depends on T047, T048, T049).
+- [ ] T051 [US6] Add deterministic local process/download integration coverage for whisper runtime/model and Ollama runtime/model verification without real downloads or package-manager invocation in `tests/integration/test_installer_local_components.py` (depends on T048, T050).
+- [ ] T052 [US6] Add subprocess-level clean-install, idempotent-retention, partial/interrupted-install, and content-free acquisition-failure acceptance coverage in `tests/acceptance/test_setup_install_dependencies.py`; after T029, extend `tests/acceptance/test_local_clients_offline.py` with explicit install → external-network block → composed local service verification (depends on T029, T050, T051).
+
+**Checkpoint**: `setup --install-dependencies` is independently testable with deterministic local fakes;
+it never mutates the host without the explicit flag, never reports ready after any failed component or final
+required readiness check, and normal post-install operation remains offline.
+
+---
+
+## Phase 8: Installer Documentation and Cross-Cutting Verification
+
+- [ ] T053 Replace manual default whisper.cpp/Ollama installation steps with the verified explicit setup workflow, bare-setup behavior, default artifacts, remediation categories, and post-install offline guarantee in `README.md`, `specs/001-local-dictation/contracts/cli.md`, `specs/001-local-dictation/quickstart.md`, and `specs/001-local-dictation/platform-acceptance-matrix.md` (depends on T050, T052).
+- [ ] T054 Run the installer unit, integration, acceptance, and existing offline/privacy regression suites; verify documentation commands and inspect command output, preferences, installer temporary locations, and logs for content-free behavior in `tests/unit/test_installer.py`, `tests/unit/test_bootstrap.py`, `tests/integration/test_installer_local_components.py`, `tests/acceptance/test_setup_install_dependencies.py`, and `tests/acceptance/test_local_clients_offline.py` (depends on T052, T053).
+
+## Dependencies & Execution Order — Dependency Installer
+
+- **US6 foundations**: T041–T044 can start in parallel; they define the observable installer contract before implementation.
+- **Persistent/platform prerequisites**: T045 depends on T042; T046 depends on T043; both block the installer coordinator.
+- **Core installer**: T047 depends on T041, T045, and T046. T048 and T049 then depend on T047; T048 also supplies the locally verified runtime handoff used by the CLI.
+- **CLI and verification**: T050 depends on T047–T049. T051 depends on T048 and T050. T052 depends on T050 and T051, plus existing T029 only for the composed post-install `serve` proof.
+- **Documentation/polish**: T053 depends on demonstrated executable behavior in T052; T054 is the final regression gate.
+- **Non-duplication**: T029 owns the general production `serve` composition root; T032 owns general microphone/trigger/placement/context readiness; T035 owns broad production offline/privacy coverage. US6 reuses these seams and only adds installer-specific behavior and verification.
+
+## Parallel Opportunities — Dependency Installer
+
+- T041, T042, T043, and T044 can run in parallel because they create independent test modules.
+- After their respective tests exist, T045 and T046 can run in parallel.
+- After T047, T048 and T049 can run in parallel if their shared installer interface is stable.
+- T051's deterministic local-component coverage can proceed while T029 completes the general production composition root; T052's composed-service assertion waits only on T029.
+
+## Implementation Strategy — Dependency Installer MVP
+
+1. Complete T041–T047 to obtain a deterministic, content-free installer that retains or acquires only the
+   required default components.
+2. Complete T048–T050 to expose the explicit command while preserving bare setup and ordinary commands as
+   non-mutating and offline.
+3. Validate the installer independently with T051 and the non-composed portions of T052.
+4. Complete the composed post-install offline proof after T029, then publish documentation in T053 and run
+   T054 as the final privacy/offline regression gate.
+
+[US6]: #phase-7-user-story-6---install-the-default-local-pipeline-priority-p1-
