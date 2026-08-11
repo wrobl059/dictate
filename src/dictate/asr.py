@@ -9,7 +9,7 @@ import urllib.error
 import urllib.request
 import wave
 from collections.abc import Callable, Sequence
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 from dictate.privacy import PrivacyError, validate_loopback_url
 
@@ -81,7 +81,7 @@ class WhisperServer:
 		request = urllib.request.Request(
 			urljoin(self.endpoint, "inference"),
 			data=_wav(pcm),
-			headers={"Content-Type": "audio/wav", "Accept": "application/json", "X-Dictate-Term-Count": str(len(terms))},
+			headers={"Content-Type": "audio/wav", "Accept": "application/json", "X-Whisper-Initial-Prompt": quote(", ".join(terms), safe="")},
 			method="POST",
 		)
 		try:

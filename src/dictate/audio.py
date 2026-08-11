@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Protocol
 
 
@@ -59,4 +60,23 @@ class Recorder:
 
 	def discard(self) -> None:
 		self._frames.clear()
+
+
+@dataclass(frozen=True)
+class AudioInputDevice:
+	identifier: str
+	name: str
+
+
+def list_input_devices(query_devices: Callable[[], object] | None = None) -> tuple[AudioInputDevice, ...]:
+	if query_devices is None:
+		import sounddevice
+		query_devices = sounddevice.query_devices
+	devices = query_devices()
+	return tuple(AudioInputDevice(str(index), str(device["name"])) for index, device in enumerate(devices) if device.get("max_input_channels", 0) > 0)
+
+
+def microphone_available(preference: str, devices: tuple[AudioInputDevice, ...]) -> bool:
+	return bool(devices) if preference == "system-default" else any(device.identifier == preference for device in devices)
+
 

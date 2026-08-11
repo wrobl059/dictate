@@ -36,11 +36,11 @@
 
 ## Phase 4: P2 Dictionary, Devices, Setup, Context, Styles
 
-- [ ] T018 Implement global/project dictionary discovery and project-over-global precedence; unit tests prove dictionary terms reach both supported ASR prompting and cleanup prompt construction.
-- [ ] T019 Implement `setup`, `doctor`, and `devices` using shared readiness checks; command tests prove required failures are nonzero, optional context is a non-blocking limitation, and remediation is content-free.
-- [ ] T020 Implement explicit microphone selection and unavailable/disconnected/default-change failures; integration tests prove clear failure before recording.
-- [ ] T021 Implement bounded original-target context and permission handling; unit tests prove only allowed fields are collected and unavailable context does not block dictation.
-- [ ] T022 Implement Natural/Formal/Casual/Technical profiles; prompt tests prove style changes do not change substantive meaning.
+- [X] T018 Implement global/project dictionary discovery and project-over-global precedence; unit tests prove dictionary terms reach both supported ASR prompting and cleanup prompt construction.
+- [X] T019 Implement `setup`, `doctor`, and `devices` using shared readiness checks; command tests prove required failures are nonzero, optional context is a non-blocking limitation, and remediation is content-free.
+- [X] T020 Implement explicit microphone selection and unavailable/disconnected/default-change failures; integration tests prove clear failure before recording.
+- [X] T021 Implement bounded original-target context and permission handling; unit tests prove only allowed fields are collected and unavailable context does not block dictation.
+- [X] T022 Implement Natural/Formal/Casual/Technical profiles; prompt tests prove style changes do not change substantive meaning.
 
 ## Phase 5: Platform Matrix, Latency, and Polish
 

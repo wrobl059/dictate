@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from dictate.config import Preferences
+from dictate.context import BoundedContext
 from dictate.platform.base import Capability, PlatformAdapter, TargetSnapshot
 from dictate.privacy import PrivacyError, validate_loopback_url
 from dictate.session import DictationSession, SessionState
@@ -111,6 +112,7 @@ class DictationService:
         *,
         recovery: RecoveryStore = DEFAULT_RECOVERY,
         status: Callable[[str], None] | None = None,
+        terms_for_target: Callable[[TargetSnapshot], Sequence[str]] | None = None,
     ) -> None:
         self.preferences = preferences
         self.platform = platform
@@ -119,8 +121,10 @@ class DictationService:
         self.cleanup = cleanup
         self.recovery = recovery
         self.status = status or (lambda _event: None)
+        self.terms_for_target = terms_for_target or (lambda _target: ())
         self.session = DictationSession()
         self._target: TargetSnapshot | None = None
+        self._terms: tuple[str, ...] = ()
 
     def start(self) -> None:
         self.asr.start()
@@ -161,6 +165,14 @@ class DictationService:
             return
         try:
             self._target = target
+            self._terms = tuple(self.terms_for_target(target))
+            context_permission = getattr(self.platform, "context_permission", lambda: Capability(False))()
+            if context_permission.available:
+                try:
+                    raw_context = self.platform.read_context(target, self.preferences.context_limit)
+                    self.session.context = raw_context.render(self.preferences.context_limit) if isinstance(raw_context, BoundedContext) else (raw_context or "")[:self.preferences.context_limit] or None
+                except Exception:
+                    self.session.context = None
             self.session.transition(SessionState.RECORDING)
             self.recorder.start()
         except Exception:
@@ -176,10 +188,10 @@ class DictationService:
                 self._fail("empty-capture")
                 return
             self.session.transition(SessionState.RECOGNIZING)
-            transcript = self.asr.transcribe(audio, terms=())
+            transcript = self.asr.transcribe(audio, terms=self._terms)
             self.session.transcript = transcript
             self.session.transition(SessionState.CLEANING)
-            output = self.cleanup.clean(transcript, self.preferences.style, terms=(), context=None)
+            output = self.cleanup.clean(transcript, self.preferences.style, terms=self._terms, context=self.session.context)
             self.session.output = output
             self.session.transition(SessionState.VALIDATING_TARGET)
             target = self._target
@@ -194,6 +206,7 @@ class DictationService:
             self._fail("local-processing-failed")
         finally:
             self._target = None
+            self._terms = ()
 
     def _fail(self, event: str) -> None:
         try:
@@ -205,6 +218,7 @@ class DictationService:
         else:
             self.session.clear_content()
         self._target = None
+        self._terms = ()
         self.status(event)
 
 

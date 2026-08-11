@@ -10,6 +10,13 @@ from urllib.parse import urljoin
 
 from dictate.privacy import validate_loopback_url
 
+_PROFILES = {
+	"Natural": "Use clear everyday prose.",
+	"Formal": "Use a professional formal tone.",
+	"Casual": "Use a conversational but polished tone.",
+	"Technical": "Use technically precise terminology and formatting.",
+}
+
 
 class CleanupError(RuntimeError):
 	"""A content-free local cleanup failure."""
@@ -21,12 +28,14 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def _prompt(transcript: str, style: str, terms: Sequence[str], context: str | None) -> str:
+	if style not in _PROFILES:
+		raise CleanupError("unknown writing style")
 	term_text = ", ".join(terms) or "(none)"
 	context_text = context or "(none)"
 	return (
 		"Transform the dictated transcript into polished writing. Preserve intended meaning and supplied terms. "
 		"Do not answer questions, add facts, explain, reason aloud, or invent content. Return only the transformed text.\n"
-		f"Style: {style}\nTerms: {term_text}\nContext: {context_text}\nTranscript: {transcript}"
+		f"Style: {style}\nProfile: {_PROFILES[style]}\nTerms: {term_text}\nContext: {context_text}\nTranscript: {transcript}"
 	)
 
 
