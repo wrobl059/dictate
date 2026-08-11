@@ -23,18 +23,21 @@ class Accessibility:
     def __init__(self) -> None:
         self.allowed = True
         self.application, self.window, self.element = object(), object(), object()
+        self.app_title: str | None = None
         self.editable_target = True
         self.replacements: list[tuple[object, str]] = []
+        self.replacement_succeeds = True
 
     def trusted(self) -> bool: return self.allowed
     def focused_target(self) -> tuple[object, object, object] | None: return (self.application, self.window, self.element)
     def application_id(self, application: object) -> str | None: return "app" if application is self.application else None
+    def application_title(self, application: object) -> str | None: return self.app_title if application is self.application else None
     def window_id(self, window: object) -> str | None: return "window" if window is self.window else None
     def editable(self, element: object) -> bool: return self.editable_target and element is self.element
     def same(self, first: object, second: object) -> bool: return first is second
     def replace_selected_text(self, element: object, text: str) -> bool:
         self.replacements.append((element, text))
-        return True
+        return self.replacement_succeeds
 
 
 class PlatformAdapterTests(unittest.TestCase):
@@ -115,6 +118,69 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertFalse(unavailable.placement_permission().available)
         self.assertIsNone(unavailable.snapshot_target())
 
+    def test_macos_does_not_broaden_keyboard_input_for_ordinary_apps(self) -> None:
+        accessibility = Accessibility()
+        accessibility.replacement_succeeds = False
+        written: list[str] = []
+        adapter = MacOSAdapter(
+            lambda *_args: Hotkey(),
+            microphone_authorized=lambda: True,
+            accessibility_factory=lambda: accessibility,
+            text_writer=written.append,
+        )
+        target = adapter.snapshot_target()
+        assert target is not None
+
+        self.assertFalse(adapter.insert_text(target, "ordinary app text"))
+        self.assertEqual([], written)
+
+        accessibility.element = object()
+        self.assertFalse(adapter.insert_text(target, "must-not-be-inserted"))
+        self.assertEqual([], written)
+
+    def test_macos_uses_settled_keyboard_input_only_for_slack_and_terminals(self) -> None:
+        for title in ("Slack", "Terminal", "iTerm2"):
+            with self.subTest(application=title):
+                accessibility = Accessibility()
+                accessibility.app_title = title
+                written: list[str] = []
+                delays: list[float] = []
+                adapter = MacOSAdapter(
+                    lambda *_args: Hotkey(),
+                    microphone_authorized=lambda: True,
+                    accessibility_factory=lambda: accessibility,
+                    text_writer=written.append,
+                    insertion_settle_delay=delays.append,
+                )
+                target = adapter.snapshot_target()
+                assert target is not None
+
+                self.assertTrue(adapter.insert_text(target, "hosted control text"))
+                self.assertEqual([0.05], delays)
+                self.assertEqual(["hosted control text"], written)
+                self.assertEqual([], accessibility.replacements)
+
+    def test_macos_keyboard_host_rechecks_target_after_settling(self) -> None:
+        accessibility = Accessibility()
+        accessibility.app_title = "Slack"
+        written: list[str] = []
+
+        def settle(_seconds: float) -> None:
+            accessibility.element = object()
+
+        adapter = MacOSAdapter(
+            lambda *_args: Hotkey(),
+            microphone_authorized=lambda: True,
+            accessibility_factory=lambda: accessibility,
+            text_writer=written.append,
+            insertion_settle_delay=settle,
+        )
+        target = adapter.snapshot_target()
+        assert target is not None
+
+        self.assertFalse(adapter.insert_text(target, "must-not-be-inserted"))
+        self.assertEqual([], written)
+
     def test_pyobjc_bridge_uses_stable_attribute_keys_when_constants_are_not_exported(self) -> None:
         module = ModuleType("ApplicationServices")
         module.AXIsProcessTrusted = lambda: True
@@ -124,6 +190,7 @@ class PlatformAdapterTests(unittest.TestCase):
         queried: list[str] = []
         editable_value: list[object | None] = [True]
         window_number: list[object | None] = [7]
+        role: list[object] = [7]
 
         def copy(_element: object, attribute: str, out_value: object) -> tuple[int, object]:
             self.assertIsNone(out_value)
@@ -132,6 +199,8 @@ class PlatformAdapterTests(unittest.TestCase):
                 return (0, editable_value[0])
             if attribute == "AXWindowNumber":
                 return (0, window_number[0])
+            if attribute == "AXRole":
+                return (0, role[0])
             return (0, 7)
 
         module.AXUIElementCopyAttributeValue = copy
@@ -152,7 +221,13 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertIsNone(bridge.window_id(object()))
             pid_result[0] = (0, 42)
             self.assertTrue(bridge.editable(object()))
+            role[0] = "AXComboBox"
+            self.assertTrue(bridge.editable(object()))
+            role[0] = "AXGroup"
+            self.assertTrue(bridge.editable(object()))
             editable_value[0] = None
+            self.assertFalse(bridge.editable(object()))
+            role[0] = 7
             self.assertTrue(bridge.editable(object()))
             editable_value[0] = False
             self.assertFalse(bridge.editable(object()))

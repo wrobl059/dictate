@@ -18,6 +18,10 @@ class Key:
     name = "alt_r"
 
 
+class GenericAltKey:
+    name = "alt"
+
+
 class HotkeyTests(unittest.TestCase):
     def test_matching_key_emits_one_press_and_release(self) -> None:
         events: list[str] = []
@@ -35,6 +39,22 @@ class HotkeyTests(unittest.TestCase):
         self.assertEqual(["press", "release"], events)
         monitor.stop()
         self.assertTrue(listener.stopped)
+
+    def test_right_option_accepts_macos_generic_alt_release(self) -> None:
+        events: list[str] = []
+        listeners: list[Listener] = []
+
+        def factory(**kwargs: object) -> Listener:
+            listener = Listener(**kwargs)
+            listeners.append(listener)
+            return listener
+
+        monitor = PynputHotkey("right_alt", lambda: events.append("press"), lambda: events.append("release"), factory)
+        monitor.start()
+        listener = listeners[0]
+        listener.callbacks["on_press"](Key())
+        listener.callbacks["on_release"](GenericAltKey())
+        self.assertEqual(["press", "release"], events)
 
 
 if __name__ == "__main__":

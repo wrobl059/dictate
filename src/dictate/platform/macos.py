@@ -6,19 +6,24 @@ import threading
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from time import sleep
 from typing import Protocol
 
 from dictate.platform.base import AcquisitionResult, Capability, PlatformAdapter, TargetSnapshot
-from dictate.platform.generic import PynputHotkey
+from dictate.platform.generic import PynputHotkey, write_text
 
 _MICROPHONE_REMEDIATION = "grant Microphone access to the app running Dictate in System Settings > Privacy & Security > Microphone"
 _ACCESSIBILITY_REMEDIATION = "grant Accessibility permission to the app running Dictate in System Settings > Privacy & Security > Accessibility"
+_KEYBOARD_INPUT_APPLICATION_MARKERS = (
+    "slack", "terminal", "iterm",
+)
 
 
 class _AccessibilityBridge(Protocol):
     def trusted(self) -> bool: ...
     def focused_target(self) -> tuple[object, object, object] | None: ...
     def application_id(self, application: object) -> str | None: ...
+    def application_title(self, application: object) -> str | None: ...
     def window_id(self, window: object) -> str | None: ...
     def editable(self, element: object) -> bool: ...
     def same(self, first: object, second: object) -> bool: ...
@@ -56,7 +61,10 @@ class _PyObjCAccessibility:
         self._focused_window = kAXFocusedWindowAttribute
         self._role = kAXRoleAttribute
         self._selected_text = kAXSelectedTextAttribute
-        self._text_roles = (kAXTextFieldRole, kAXTextAreaRole)
+        self._title = "AXTitle"
+        # Browser address bars and web-mail recipient widgets are often exposed
+        # as editable combo boxes rather than plain text fields.
+        self._text_roles = (kAXTextFieldRole, kAXTextAreaRole, "AXComboBox")
         self._window_number = "AXWindowNumber"
 
     @staticmethod
@@ -79,6 +87,10 @@ class _PyObjCAccessibility:
         result = self._pid(application, None)
         return f"pid:{result[1]}" if isinstance(result, tuple) and len(result) == 2 and result[0] == 0 else None
 
+    def application_title(self, application: object) -> str | None:
+        title = self._value(self._copy(application, self._title, None))
+        return title if isinstance(title, str) else None
+
     def window_id(self, window: object) -> str | None:
         number = self._value(self._copy(window, self._window_number, None))
         if isinstance(number, int):
@@ -89,9 +101,11 @@ class _PyObjCAccessibility:
     def editable(self, element: object) -> bool:
         role = self._value(self._copy(element, self._role, None))
         editable = self._value(self._copy(element, self._editable, None))
-        # Some ordinary macOS text controls omit AXEditable. An explicit false
-        # remains read-only; write failure is still fail-closed at insertion.
-        return role in self._text_roles and editable is not False
+        # Browser-backed controls can have composite AX roles, but an explicit
+        # AXEditable=True is still a reliable declaration that the focused
+        # element accepts text. Native text controls sometimes omit AXEditable.
+        # An explicit false always remains read-only.
+        return editable is True or (role in self._text_roles and editable is not False)
 
     def same(self, first: object, second: object) -> bool:
         return first == second
@@ -125,6 +139,7 @@ class _NativeTarget:
     application: object
     window: object
     element: object
+    keyboard_input: bool
 
 
 class MacOSAdapter(PlatformAdapter):
@@ -136,10 +151,14 @@ class MacOSAdapter(PlatformAdapter):
         *,
         microphone_authorized: Callable[[], bool] = _microphone_authorized,
         accessibility_factory: Callable[[], _AccessibilityBridge] = _PyObjCAccessibility,
+        text_writer: Callable[[str], None] = write_text,
+        insertion_settle_delay: Callable[[float], None] = sleep,
     ) -> None:
         self._hotkey_factory = hotkey_factory
         self._microphone_authorized = microphone_authorized
         self._accessibility_factory = accessibility_factory
+        self._text_writer = text_writer
+        self._insertion_settle_delay = insertion_settle_delay
         self._accessibility: _AccessibilityBridge | None = None
         self._accessibility_unavailable = False
         self._targets: dict[str, _NativeTarget] = {}
@@ -191,7 +210,10 @@ class MacOSAdapter(PlatformAdapter):
             if application_id is None or window_id is None or not bridge.editable(element):
                 return None
             token = uuid.uuid4().hex
-            self._targets[token] = _NativeTarget(application, window, element)
+            self._targets[token] = _NativeTarget(
+                application, window, element,
+                self._requires_keyboard_input(bridge.application_title(application)),
+            )
             return TargetSnapshot(application_id, window_id, token)
         except Exception:
             return None
@@ -226,9 +248,27 @@ class MacOSAdapter(PlatformAdapter):
         if native is None or bridge is None:
             return False
         try:
-            return bridge.replace_selected_text(native.element, text)
+            if native.keyboard_input:
+                return self._write_after_trigger_release(target, text)
+            if bridge.replace_selected_text(native.element, text):
+                return True
+            return False
         except Exception:
             return False
+
+    @staticmethod
+    def _requires_keyboard_input(application_title: str | None) -> bool:
+        normalized = application_title.casefold() if application_title is not None else ""
+        return any(marker in normalized for marker in _KEYBOARD_INPUT_APPLICATION_MARKERS)
+
+    def _write_after_trigger_release(self, target: TargetSnapshot, text: str) -> bool:
+        # Wait for macOS to complete delivery of the physical Option-key
+        # release before injecting text, then verify the original target again.
+        self._insertion_settle_delay(0.05)
+        if not self.target_matches(target):
+            return False
+        self._text_writer(text)
+        return True
 
     def release_target(self, target: TargetSnapshot) -> None:
         self._targets.pop(target.text_target_id, None)

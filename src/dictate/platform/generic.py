@@ -51,9 +51,14 @@ class PynputHotkey:
             self._on_press()
 
     def _release(self, key: object) -> None:
-        if self._matches(key) and self._held:
+        if self._matches(key) or (self._held and self._is_generic_alt_release(key)):
             self._held = False
             self._on_release()
+
+    def _is_generic_alt_release(self, key: object) -> bool:
+        if self._trigger not in ("right_alt", "left_alt", "alt_r", "alt_l"):
+            return False
+        return getattr(key, "name", None) == "alt" or str(key).removeprefix("Key.") == "alt"
 
 
 def write_text(text: str, controller_factory: Callable[[], object] | None = None) -> None:
