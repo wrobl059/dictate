@@ -18,8 +18,10 @@ global key events and generic keyboard injection. `argparse`, `tomllib`, `loggin
 `urllib.request`, `wave`, and `tempfile` alternatives are standard library. No NumPy, ML framework,
 Ollama SDK, or other runtime dependency.
 
-**External local runtimes**: whisper.cpp executable/service; Ollama with
-`qwen3:4b-instruct-2507-q4_K_M`.
+**External local runtimes**: whisper.cpp `whisper-server` with the documented default multilingual
+`ggml-base.bin` model; Ollama with `qwen3:4b-instruct-2507-q4_K_M`. `dictate setup
+--install-dependencies` is the only acquisition path: it may use the network to repair missing Python
+package dependencies and acquire these external runtime/model artifacts before final local readiness.
 
 **Storage**: Directly editable TOML configuration and plain-text dictionaries only. Atomic writes for
 preferences; no database. Audio, transcript, prompt, context, and successful output remain in memory.
@@ -44,7 +46,7 @@ no remote fallback; 16 GB baseline RAM; one active session; bounded context; no 
 
 | Gate | Status | Plan evidence |
 |---|---|---|
-| Offline and local-only | PASS | Loopback-only verification; external binaries local; offline acceptance test |
+| Offline and local-only | PASS | Acquisition is explicit and separate from normal readiness/service flow; external binaries and models run locally; post-install offline acceptance test |
 | Privacy by architecture | PASS | In-memory content; metadata-only logs; no history/telemetry/clipboard default |
 | Lowest complexity and CLI-first | PASS | One process, argparse, two Python dependencies, no GUI/database/framework |
 | Cross-platform isolation | PASS | Narrow `platform/` adapters; shared pipeline |
@@ -52,7 +54,9 @@ no remote fallback; 16 GB baseline RAM; one active session; bounded context; no 
 | Observable tests | PASS | Offline, privacy, focus-safety, corpus, and integration tests |
 
 **Post-design re-check**: PASS. `sounddevice` and `pynput` each satisfy a specific required OS boundary;
-all other functionality uses Python or external local executables.
+the installer is a small, injectable standard-library subprocess/download coordinator rather than a
+provider framework. Network acquisition is available only behind the explicit setup flag; all ordinary
+commands and dictation remain local-only.
 
 ## Architecture and Delivery Sequence
 
@@ -72,14 +76,31 @@ do not persist normal audio.
    is optional only if accessible through that adapter. Use native platform behavior only after a
    documented generic failure. Target identity is captured at key-down and must match at insertion.
 6. Implement setup/doctor/devices/serve, then corpus and end-to-end acceptance tests.
+7. Replace the console entry point with a standard-library-only `bootstrap.py` dispatcher so `setup
+   --install-dependencies` can parse the command before importing optional runtime-bound modules. It
+   repairs missing Python package dependencies for the running interpreter, then imports the normal CLI to
+   discover and acquire only missing/unusable external default components. Persist verified whisper
+   executable/model locations atomically in preferences and compose `serve` with the same verified
+   `whisper-server` command. Keep bare `setup` and `doctor` strictly probe-only.
+8. Model acquisition as ordered, content-free component outcomes—Python dependencies, whisper.cpp
+   runtime, whisper.cpp model, Ollama runtime, Ollama model. A later invocation re-probes each component,
+   retains verified artifacts, removes only incomplete temporary downloads, and never marks the service
+   ready until final full readiness succeeds. Platform-specific package-manager/installer support stays
+   behind the existing platform boundary and reports an unsupported-platform remedy when unavailable.
+9. Test process/download/platform dispatch with injected runners; test no mutations for bare setup,
+   idempotent retention, partial/interrupted acquisition, authorization/disk/network failures, and the
+   mandatory post-install offline service path. Update the README, CLI contract, quickstart, and platform
+   matrix only after the executable behavior is covered.
 
 ## Project Structure
 
 ```text
 src/dictate/
 ├── __main__.py          # argparse entry point
+├── bootstrap.py          # standard-library-only console dispatcher and Python-dependency bootstrap
 ├── cli.py               # setup, serve, doctor, devices
 ├── config.py            # TOML files and defaults
+├── installer.py          # explicit dependency discovery/acquisition and content-free outcomes
 ├── service.py           # orchestration and readiness
 ├── session.py           # explicit dictation state machine
 ├── audio.py             # sounddevice in-memory PCM capture
@@ -97,9 +118,14 @@ tests/
 └── fixtures/cleanup-corpus.json
 ```
 
-**Structure Decision**: One ordinary Python package; no provider/plugin abstraction. The platform folder
-is the only polymorphic boundary because OS behavior is intrinsically different.
+**Structure Decision**: One ordinary Python package; no provider/plugin abstraction. `installer.py` is a
+small shared orchestrator with injected process/download runners; platform-specific package-manager and
+authorization behavior extends the existing `platform/` boundary. The platform folder remains the only
+polymorphic boundary because OS behavior is intrinsically different.
 
 ## Complexity Tracking
 
-No constitutional violations or additional architectural layers require justification.
+The installer introduces one focused module because explicit acquisition has a materially different
+network, privilege, retry, and failure contract from local readiness. It is justified by the fresh-install
+default-pipeline requirement and remains bounded: no background update service, package-manager framework,
+telemetry, cloud inference, or persistent content-bearing state is introduced.

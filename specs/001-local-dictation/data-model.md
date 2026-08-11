@@ -5,8 +5,10 @@ All content-bearing entities are in-memory only unless explicitly marked as pref
 ## Persistent preferences
 
 - **Configuration**: TOML; selected input (`system-default` or device identifier), trigger, Natural/Formal/
-  Casual/Technical style, local executable paths, loopback endpoints, model names, and bounded limits.
-  Validation rejects non-loopback inference URLs and unknown styles.
+  Casual/Technical style, loopback endpoints, model names, bounded limits, and the verified local
+  whisper-server executable and default speech-model paths. Validation rejects non-loopback inference URLs,
+  unknown styles, and empty or non-local runtime locations. Runtime locations are written atomically only
+  after successful component verification.
 - **Global dictionary**: newline-delimited local terms.
 - **Project dictionary**: newline-delimited local terms associated with a detected project root. It overrides
   a conflicting global spelling only for that session.
@@ -21,11 +23,20 @@ All content-bearing entities are in-memory only unless explicitly marked as pref
 - **Recovery result**: final text held in process memory only when original target verification fails; cleared
   after explicit use, replacement, timeout, or exit.
 - **Diagnostic result**: content-free capability state, timing, and remediation only.
+- **Dependency installation result**: one ordered, content-free outcome per required default component:
+  Python dependencies, whisper.cpp runtime, whisper.cpp model, Ollama runtime, and Ollama model. Each
+  outcome records its component identity, terminal status (`retained`, `acquired`, `failed`, or
+  `unsupported`), and a content-free remediation when applicable. Outcomes are command-scoped and are not
+  retained as a user-content history.
 
 ## Invariants
 
 1. At most one session is not terminal.
 2. Audio/transcript/context/prompt/output are never written to ordinary logs or persistent history.
 3. Insertion requires an exact original-target match immediately before injection.
-4. Setup readiness requires all required local capabilities, including destination-context access.
+4. Setup readiness requires every required local capability; destination-context access is an optional
+   limitation and never blocks context-free dictation.
+5. Only `setup --install-dependencies` may create, replace, or download runtime/model artifacts. A
+   component is retained only after a local usability probe; incomplete temporary artifacts are never saved
+   as the configured runtime or model.
 

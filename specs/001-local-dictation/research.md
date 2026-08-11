@@ -60,3 +60,57 @@ applicable project entry override a spelling for the session.
 
 **Rationale**: Directly editable, inspectable, deterministic, and database-free.
 
+## Explicit dependency acquisition
+
+**Decision**: Make `dictate setup --install-dependencies` the sole mutable and network-permitted
+bootstrap path. It performs an ordered discovery/acquisition/verification pass for the running
+interpreter's declared Python dependencies, the supported whisper.cpp runtime, the default multilingual
+`ggml-base.bin` speech model, the supported Ollama runtime, and the configured default Ollama model.
+Bare `dictate setup` and `dictate doctor` only probe and explain how to invoke this path.
+
+**Rationale**: It fulfills the one-command fresh-install requirement without making network access or
+software changes part of ordinary setup, diagnostics, service startup, or dictation. Ordered outcomes
+allow retries to retain a usable component and distinguish incomplete acquisition from final readiness.
+
+**Alternatives considered**: Continue requiring manual installation (rejected: users must assemble the
+default pipeline); acquire automatically from `serve` or ordinary setup (rejected: violates explicit
+user initiation and offline expectations); embed ASR/cleanup runtimes as Python dependencies (rejected:
+materially increases package size and complexity).
+
+**Bootstrap detail**: Change the console entry point to a standard-library-only `bootstrap.py` module.
+It recognizes only the explicit install invocation, uses the current Python interpreter to repair missing
+declared package dependencies, then imports the ordinary CLI. This avoids importing audio or keyboard
+modules before they can be installed and keeps all other commands on the existing normal CLI path.
+
+## Installer boundary and verification
+
+**Decision**: Add one small installer coordinator with injected process and download runners plus a
+content-free per-component outcome type. Reuse readiness probes only after acquisition; extend preferences
+with verified whisper executable and model locations so `serve` constructs the same loopback
+`whisper-server` command that setup validated. Use atomic temporary downloads and verified replacement so
+interrupted artifacts are never treated as installed.
+
+**Rationale**: The existing flattened readiness result cannot identify which external artifact is missing,
+and the current service has no production whisper-server command. A dedicated, testable coordinator closes
+both gaps without a generalized provider architecture or content-bearing logs.
+
+**Alternatives considered**: Infer install state from free-form readiness messages (rejected: ambiguous
+and brittle); add a package-manager plugin system (rejected: unnecessary abstraction); leave service
+startup externally managed after setup (rejected: setup could not verify the pipeline it installed).
+
+## Cross-platform acquisition
+
+**Decision**: Dispatch external-runtime installation through the existing platform adapter boundary. Each
+supported platform uses one documented non-interactive acquisition route and reports a specific
+content-free remedy when that route, authorization, storage, or platform support is unavailable. The
+shared coordinator downloads the documented default speech model into Dictate-managed local application
+data and verifies it before saving preferences.
+
+**Rationale**: Runtime installation and authorization differ by operating system, while model lifecycle is
+shared. This preserves a narrow, observable OS boundary and avoids silently choosing an unknown package
+manager or escalating privileges.
+
+**Alternatives considered**: A single shell script for every operating system (rejected: unsafe and
+non-portable); silently attempt every installed package manager (rejected: surprising side effects);
+require an elevated terminal (rejected: fails the actionable-remediation requirement).
+
