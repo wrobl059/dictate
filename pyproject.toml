@@ -10,6 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "sounddevice==0.5.5",
     "pynput==1.8.2",
+    "pyobjc-framework-AVFoundation>=11.0; platform_system == 'Darwin'",
+    "pyobjc-framework-Quartz>=11.0; platform_system == 'Darwin'",
 ]
 
 [project.scripts]

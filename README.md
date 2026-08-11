@@ -48,10 +48,14 @@ dictate serve
 - `setup --install-dependencies` is the explicit, content-free acquisition path. Normal dictation and all
   other commands remain offline-capable after it succeeds.
 - `devices` lists local input identifiers and display names without recording.
-- `doctor` prints content-free readiness failures and platform-specific remediation.
+- `doctor` prints content-free readiness failures and platform-specific remediation. On macOS, it requests
+  Microphone access through the native authorization API without opening, sampling, or retaining audio.
 - `serve` starts the local push-to-talk pipeline only after required local readiness checks pass.
 
-The repository's acceptance tests exercise the service through deterministic local boundaries. Current native adapters intentionally fail closed for automatic placement until they can verify the original text target, so `setup`, `doctor`, and `serve` correctly report placement as not ready on such a host. A pending unsafe-placement result remains in process memory only; an interactive recovery UX is not yet available.
+The repository's acceptance tests exercise the service through deterministic local boundaries. macOS uses
+Accessibility only when it can capture and revalidate the original application, window, and editable text target;
+unsupported targets or denied permission remain fail-closed. A pending unsafe-placement result remains in process
+memory only; an interactive recovery UX is not yet available.
 
 ## Blessed defaults
 
@@ -68,6 +72,8 @@ A fresh configuration uses one supported pipeline:
 | Cleanup model | `qwen3:4b-instruct-2507-q4_K_M` |
 | Context limit | 1,024 characters |
 
+On macOS, `right_alt` means the physical **right Option/Alt** key (reported by pynput as `alt_r`). Hold it while speaking, then release it to stop recording and start local processing. Grant Input Monitoring to the app that launches Dictate so it can receive the global key events.
+
 The built-in cleanup styles are Natural, Formal, Casual, and Technical. Cleanup is mandatory, deterministic local Ollama processing; it transforms what was dictated and must not answer questions or add content.
 
 ## Privacy and safety
@@ -82,7 +88,7 @@ Text is injected only after revalidating the original application, window, and t
 
 ## Platform behavior and validation
 
-The cross-platform acceptance contract and the current content-free evidence are in [`specs/001-local-dictation/platform-acceptance-matrix.md`](specs/001-local-dictation/platform-acceptance-matrix.md). The generic key-monitoring path is shared. macOS, Windows, and Linux adapters fail closed for automatic placement until their platform has a verified original-target implementation; they report remediation rather than risking insertion into an unrelated field.
+The cross-platform acceptance contract and the current content-free evidence are in [`specs/001-local-dictation/platform-acceptance-matrix.md`](specs/001-local-dictation/platform-acceptance-matrix.md). The generic key-monitoring path is shared. macOS uses native Accessibility APIs for verified placement; Windows and Linux remain fail-closed until their platform has a verified original-target implementation.
 
 The warmed-model latency acceptance target is visible placement within five seconds of release for at least 90% of successful short dictations. The timing report carries only duration and outcome metadata.
 

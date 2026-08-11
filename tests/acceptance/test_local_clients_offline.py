@@ -34,7 +34,8 @@ class LocalClientOfflineAcceptanceTests(unittest.TestCase):
                 def do_POST(self):
                     body = self.rfile.read(int(self.headers["Content-Length"]))
                     if self.path == "/inference":
-                        if not body.startswith(b"RIFF"): raise SystemExit("ASR did not receive in-memory WAV")
+                        if not self.headers["Content-Type"].startswith("multipart/form-data; boundary="): raise SystemExit("ASR did not receive multipart form data")
+                        if b'name="file"; filename="audio.wav"' not in body or b"RIFF" not in body: raise SystemExit("ASR did not receive in-memory WAV file")
                         payload = {"text": SENTINEL}
                     elif self.path == "/api/generate":
                         request = json.loads(body)

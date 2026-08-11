@@ -7,9 +7,10 @@ import json
 import subprocess
 import urllib.error
 import urllib.request
+import uuid
 import wave
 from collections.abc import Callable, Sequence
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 from dictate.config import Preferences
 from dictate.privacy import validate_loopback_url
@@ -32,6 +33,17 @@ def _wav(pcm: bytes) -> bytes:
 		output.setframerate(16_000)
 		output.writeframes(pcm)
 	return buffer.getvalue()
+
+
+def _multipart_wav(pcm: bytes, terms: Sequence[str]) -> tuple[bytes, str]:
+	"""Build whisper.cpp's local multipart request without persisting audio."""
+	boundary = f"----dictate-{uuid.uuid4().hex}"
+	parts = (
+		f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.wav"\r\nContent-Type: audio/wav\r\n\r\n'.encode("ascii") + _wav(pcm),
+		f'--{boundary}\r\nContent-Disposition: form-data; name="prompt"\r\n\r\n'.encode("ascii") + ", ".join(terms).encode("utf-8"),
+		f'--{boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\njson'.encode("ascii"),
+	)
+	return b"\r\n".join(parts) + f"\r\n--{boundary}--\r\n".encode("ascii"), f"multipart/form-data; boundary={boundary}"
 
 
 def whisper_server_command(preferences: Preferences) -> tuple[str, ...]:
@@ -90,10 +102,11 @@ class WhisperServer:
 			raise ASRError("audio capture was empty")
 		self._ensure_running()
 		validate_loopback_url(self.endpoint)
+		body, content_type = _multipart_wav(pcm, terms)
 		request = urllib.request.Request(
 			urljoin(self.endpoint, "inference"),
-			data=_wav(pcm),
-			headers={"Content-Type": "audio/wav", "Accept": "application/json", "X-Whisper-Initial-Prompt": quote(", ".join(terms), safe="")},
+			data=body,
+			headers={"Content-Type": content_type, "Accept": "application/json"},
 			method="POST",
 		)
 		try:

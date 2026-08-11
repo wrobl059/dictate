@@ -15,7 +15,7 @@ class Listener:
 
 
 class Key:
-    name = "right_alt"
+    name = "alt_r"
 
 
 class HotkeyTests(unittest.TestCase):

@@ -59,6 +59,9 @@ class PlatformAdapter(ABC):
     @abstractmethod
     def insert_text(self, target: TargetSnapshot, text: str) -> bool: ...
 
+    def release_target(self, target: TargetSnapshot) -> None:
+        """Discard any adapter-local native reference retained for a target."""
+
     @abstractmethod
     def start_hotkey(self, trigger: str, on_press: object, on_release: object) -> None: ...
 

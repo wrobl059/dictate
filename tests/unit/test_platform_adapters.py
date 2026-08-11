@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import unittest
+from types import ModuleType
+from unittest.mock import patch
 
+from dictate.platform.base import TargetSnapshot
 from dictate.platform.linux import LinuxAdapter
-from dictate.platform.macos import MacOSAdapter
+from dictate.platform.macos import MacOSAdapter, _PyObjCAccessibility
 from dictate.platform.windows import WindowsAdapter
 
 
@@ -14,6 +17,24 @@ class Hotkey:
 
     def start(self) -> None: self.started = True
     def stop(self) -> None: self.stopped = True
+
+
+class Accessibility:
+    def __init__(self) -> None:
+        self.allowed = True
+        self.application, self.window, self.element = object(), object(), object()
+        self.editable_target = True
+        self.replacements: list[tuple[object, str]] = []
+
+    def trusted(self) -> bool: return self.allowed
+    def focused_target(self) -> tuple[object, object, object] | None: return (self.application, self.window, self.element)
+    def application_id(self, application: object) -> str | None: return "app" if application is self.application else None
+    def window_id(self, window: object) -> str | None: return "window" if window is self.window else None
+    def editable(self, element: object) -> bool: return self.editable_target and element is self.element
+    def same(self, first: object, second: object) -> bool: return first is second
+    def replace_selected_text(self, element: object, text: str) -> bool:
+        self.replacements.append((element, text))
+        return True
 
 
 class PlatformAdapterTests(unittest.TestCase):
@@ -28,8 +49,8 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertEqual(1, len(commands))
                 self.assertFalse(adapter_type(lambda *_args: Hotkey()).acquire_external_runtime("unknown", lambda _command: True).acquired)
 
-    def test_all_platform_adapters_are_instantiable_and_fail_closed_for_target_safety(self) -> None:
-        for adapter_type in (MacOSAdapter, WindowsAdapter, LinuxAdapter):
+    def test_non_macos_adapters_fail_closed_for_target_safety(self) -> None:
+        for adapter_type in (WindowsAdapter, LinuxAdapter):
             with self.subTest(adapter=adapter_type.__name__):
                 hotkeys: list[Hotkey] = []
 
@@ -46,13 +67,98 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertIsNone(adapter.snapshot_target())
                 self.assertFalse(adapter.target_matches(object()))
                 self.assertFalse(adapter.insert_text(object(), "must-not-be-inserted"))
-
                 adapter.start_hotkey("right_alt", lambda: None, lambda: None)
                 adapter.stop_hotkey()
                 self.assertTrue(hotkeys[0].started)
                 self.assertTrue(hotkeys[0].stopped)
 
+    def test_macos_microphone_authorization_is_explicit_and_content_free(self) -> None:
+        calls: list[object] = []
+        adapter = MacOSAdapter(
+            lambda *_args: Hotkey(),
+            microphone_authorized=lambda: calls.append(object()) or True,
+            accessibility_factory=Accessibility,
+        )
+        self.assertTrue(adapter.microphone_permission().available)
+        self.assertEqual(1, len(calls))
+
+        denied = MacOSAdapter(lambda *_args: Hotkey(), microphone_authorized=lambda: False, accessibility_factory=Accessibility)
+        capability = denied.microphone_permission()
+        self.assertFalse(capability.available)
+        self.assertIn("Microphone", capability.remediation or "")
+
+    def test_macos_accessibility_snapshot_revalidates_and_releases_target(self) -> None:
+        accessibility = Accessibility()
+        adapter = MacOSAdapter(lambda *_args: Hotkey(), microphone_authorized=lambda: True, accessibility_factory=lambda: accessibility)
+        self.assertTrue(adapter.placement_permission().available)
+        target = adapter.snapshot_target()
+        self.assertIsInstance(target, TargetSnapshot)
+        assert target is not None
+        self.assertTrue(adapter.target_matches(target))
+        self.assertTrue(adapter.insert_text(target, "verified text"))
+        self.assertEqual([(accessibility.element, "verified text")], accessibility.replacements)
+        adapter.release_target(target)
+        self.assertFalse(adapter.target_matches(target))
+        self.assertFalse(adapter.insert_text(target, "must-not-be-inserted"))
+
+    def test_macos_focus_change_or_missing_accessibility_never_inserts(self) -> None:
+        accessibility = Accessibility()
+        adapter = MacOSAdapter(lambda *_args: Hotkey(), microphone_authorized=lambda: True, accessibility_factory=lambda: accessibility)
+        target = adapter.snapshot_target()
+        assert target is not None
+        accessibility.element = object()
+        self.assertFalse(adapter.target_matches(target))
+        self.assertFalse(adapter.insert_text(target, "must-not-be-inserted"))
+        self.assertEqual([], accessibility.replacements)
+
+        unavailable = MacOSAdapter(lambda *_args: Hotkey(), microphone_authorized=lambda: True, accessibility_factory=lambda: (_ for _ in ()).throw(ImportError()))
+        self.assertFalse(unavailable.placement_permission().available)
+        self.assertIsNone(unavailable.snapshot_target())
+
+    def test_pyobjc_bridge_uses_stable_attribute_keys_when_constants_are_not_exported(self) -> None:
+        module = ModuleType("ApplicationServices")
+        module.AXIsProcessTrusted = lambda: True
+        module.AXUIElementCreateSystemWide = lambda: object()
+        pid_result: list[tuple[int, int]] = [(0, 42)]
+        module.AXUIElementGetPid = lambda _element, _pid: pid_result[0]
+        queried: list[str] = []
+        editable_value: list[object | None] = [True]
+        window_number: list[object | None] = [7]
+
+        def copy(_element: object, attribute: str, out_value: object) -> tuple[int, object]:
+            self.assertIsNone(out_value)
+            queried.append(attribute)
+            if attribute == "AXEditable":
+                return (0, editable_value[0])
+            if attribute == "AXWindowNumber":
+                return (0, window_number[0])
+            return (0, 7)
+
+        module.AXUIElementCopyAttributeValue = copy
+        module.AXUIElementSetAttributeValue = lambda _element, _attribute, _value: 0
+        module.kAXFocusedApplicationAttribute = "AXFocusedApplication"
+        module.kAXFocusedUIElementAttribute = "AXFocusedUIElement"
+        module.kAXFocusedWindowAttribute = "AXFocusedWindow"
+        module.kAXRoleAttribute = "AXRole"
+        module.kAXSelectedTextAttribute = "AXSelectedText"
+        module.kAXTextAreaRole = 7
+        module.kAXTextFieldRole = 8
+        with patch.dict("sys.modules", {"ApplicationServices": module}):
+            bridge = _PyObjCAccessibility()
+            self.assertEqual("window:7", bridge.window_id(object()))
+            window_number[0] = None
+            self.assertEqual("window-pid:42", bridge.window_id(object()))
+            pid_result[0] = (1, 42)
+            self.assertIsNone(bridge.window_id(object()))
+            pid_result[0] = (0, 42)
+            self.assertTrue(bridge.editable(object()))
+            editable_value[0] = None
+            self.assertTrue(bridge.editable(object()))
+            editable_value[0] = False
+            self.assertFalse(bridge.editable(object()))
+        self.assertIn("AXWindowNumber", queried)
+        self.assertIn("AXEditable", queried)
+
 
 if __name__ == "__main__":
     unittest.main()
-

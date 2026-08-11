@@ -165,7 +165,7 @@ class DictationService:
                     self.asr.stop()
                 finally:
                     self.recovery.clear()
-                    self._target = None
+                    self._clear_target()
                     if self.session.state not in (SessionState.IDLE, SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
                         self.session.fail()
                     if self.session.state is not SessionState.IDLE:
@@ -199,6 +199,7 @@ class DictationService:
             return
         released_at = self._clock()
         outcome = "local-processing-failed"
+        stage = "capture-stop"
         try:
             audio = self.recorder.stop()
             self.session.audio = audio
@@ -206,14 +207,17 @@ class DictationService:
                 self._fail("empty-capture")
                 outcome = "empty-capture"
                 return
+            stage = "asr"
             self.session.transition(SessionState.RECOGNIZING)
             transcript = self.asr.transcribe(audio, terms=self._terms)
             self.session.transcript = transcript
+            stage = "cleanup"
             self.session.transition(SessionState.CLEANING)
             output = self.cleanup.clean(transcript, self.preferences.style, terms=self._terms, context=self.session.context)
             if not isinstance(output, str) or not output.strip():
                 raise ValueError("local cleanup returned no usable output")
             self.session.output = output
+            stage = "placement"
             self.session.transition(SessionState.VALIDATING_TARGET)
             target = self._target
             if target is None or not self.platform.target_matches(target) or not self.platform.insert_text(target, output):
@@ -226,11 +230,11 @@ class DictationService:
             self.status("inserted")
             outcome = "inserted"
         except Exception:
-            self._fail("local-processing-failed")
+            self._fail(f"local-processing-failed-{stage}")
         finally:
             duration_ms = max(0, round((self._clock() - released_at) * 1_000))
             self._timing_reporter(PlacementTiming(duration_ms, outcome))
-            self._target = None
+            self._clear_target()
             self._terms = ()
             if self.session.state in (SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
                 self.session.reset()
@@ -244,8 +248,16 @@ class DictationService:
             self.session.fail()
         if self.session.state is not SessionState.IDLE:
             self.session.reset()
-        self._target = None
+        self._clear_target()
         self._terms = ()
         self.status(event)
+
+    def _clear_target(self) -> None:
+        target, self._target = self._target, None
+        if target is not None:
+            try:
+                self.platform.release_target(target)
+            except Exception:
+                pass
 
 

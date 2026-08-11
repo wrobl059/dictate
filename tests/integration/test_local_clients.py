@@ -55,11 +55,15 @@ class LocalClientIntegrationTests(unittest.TestCase):
     def test_memory_backed_asr_uses_loopback_and_returns_text(self) -> None:
         client = WhisperServer(self.endpoint)
         self.assertTrue(client.ready())
-        self.assertEqual("local transcript", client.transcribe(b"\x00\x00"))
+        self.assertEqual("local transcript", client.transcribe(b"\x00\x00", terms=("Dictate", "Ollama")))
         path, headers, body = Handler.requests[-1]
         self.assertEqual("/inference", path)
-        self.assertEqual("audio/wav", headers["Content-Type"])
-        self.assertTrue(body.startswith(b"RIFF"))
+        self.assertTrue(headers["Content-Type"].startswith("multipart/form-data; boundary="))
+        self.assertIn(b'name="file"; filename="audio.wav"', body)
+        self.assertIn(b"Content-Type: audio/wav", body)
+        self.assertIn(b"RIFF", body)
+        self.assertIn(b'name="prompt"\r\n\r\nDictate, Ollama', body)
+        self.assertIn(b'name="response_format"\r\n\r\njson', body)
 
     def test_whisper_runtime_is_supervised_for_service_lifetime(self) -> None:
         class Process:

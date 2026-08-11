@@ -41,8 +41,9 @@ class PynputHotkey:
         self._held = False
 
     def _matches(self, key: object) -> bool:
+        trigger = {"right_alt": "alt_r", "left_alt": "alt_l"}.get(self._trigger, self._trigger)
         name = getattr(key, "name", None)
-        return name == self._trigger or str(key).removeprefix("Key.") == self._trigger
+        return name == trigger or str(key).removeprefix("Key.") == trigger
 
     def _press(self, key: object) -> None:
         if self._matches(key) and not self._held:

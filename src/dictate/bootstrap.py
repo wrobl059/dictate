@@ -8,6 +8,7 @@ import sys
 from collections.abc import Callable, Sequence
 
 PYTHON_DEPENDENCIES = ("sounddevice==0.5.5", "pynput==1.8.2")
+MACOS_DEPENDENCIES = ("pyobjc-framework-AVFoundation>=11.0", "pyobjc-framework-Quartz>=11.0")
 
 
 def is_explicit_install(argv: Sequence[str]) -> bool:
@@ -17,13 +18,16 @@ def is_explicit_install(argv: Sequence[str]) -> bool:
 
 def missing_dependencies() -> tuple[str, ...]:
     missing: list[str] = []
-    for requirement in PYTHON_DEPENDENCIES:
-        name, _, expected = requirement.partition("==")
+    requirements = PYTHON_DEPENDENCIES + (MACOS_DEPENDENCIES if sys.platform == "darwin" else ())
+    for requirement in requirements:
+        name, separator, expected = requirement.partition("==")
+        if not separator:
+            name = requirement.split(">=", 1)[0]
         try:
             installed = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
             installed = None
-        if installed != expected:
+        if installed is None or (separator and installed != expected):
             missing.append(requirement)
     return tuple(missing)
 

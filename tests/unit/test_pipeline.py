@@ -13,6 +13,7 @@ class Platform(PlatformAdapter):
         self.target = TargetSnapshot("app", "window-a", "field")
         self.matches = True
         self.inserted: list[tuple[TargetSnapshot, str]] = []
+        self.released: list[TargetSnapshot] = []
         self.callbacks = None
 
     def microphone_permission(self) -> Capability: return Capability(True)
@@ -27,6 +28,7 @@ class Platform(PlatformAdapter):
             return False
         self.inserted.append((target, text))
         return True
+    def release_target(self, target: TargetSnapshot) -> None: self.released.append(target)
     def start_hotkey(self, trigger: str, on_press: object, on_release: object) -> None: self.callbacks = (on_press, on_release)
     def stop_hotkey(self) -> None: self.callbacks = None
     def recovery_instruction(self) -> str: return "recover"
@@ -81,6 +83,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual([(b"pcm", ())], asr.calls)
         self.assertEqual(("spoken words", "Natural", (), None), cleanup.calls[0])
         self.assertEqual([(platform.target, "Polished words")], platform.inserted)
+        self.assertEqual([platform.target], platform.released)
         self.assertEqual(SessionState.IDLE, service.session.state)
 
     def test_empty_audio_never_reaches_asr_cleanup_or_insertion(self) -> None:
@@ -90,6 +93,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual([], asr.calls)
         self.assertEqual([], cleanup.calls)
         self.assertEqual([], platform.inserted)
+        self.assertEqual([TargetSnapshot("app", "window-a", "field")], platform.released)
         self.assertEqual(SessionState.IDLE, service.session.state)
 
     def test_target_mismatch_never_injects_and_requires_one_recovery_read(self) -> None:
@@ -105,7 +109,9 @@ class PipelineTests(unittest.TestCase):
     def test_asr_or_cleanup_failure_never_inserts(self) -> None:
         for failure in ("asr", "cleanup"):
             with self.subTest(failure=failure):
-                service, platform, _, asr, cleanup, _ = self.make_service()
+                platform, recorder, asr, cleanup, recovery = Platform(), Recorder(), ASR(), Cleanup(), RecoveryStore()
+                events: list[str] = []
+                service = DictationService(Preferences(), platform, recorder, asr, cleanup, recovery=recovery, status=events.append)
                 if failure == "asr":
                     asr.transcribe = lambda pcm, terms=(): (_ for _ in ()).throw(RuntimeError("failure"))
                 else:
@@ -114,6 +120,17 @@ class PipelineTests(unittest.TestCase):
                 service.release()
                 self.assertEqual([], platform.inserted)
                 self.assertEqual(SessionState.IDLE, service.session.state)
+                self.assertEqual([f"local-processing-failed-{failure}"], events)
+
+    def test_capture_stop_failure_reports_fixed_content_free_stage(self) -> None:
+        service, platform, recorder, _, _, _ = self.make_service()
+        events: list[str] = []
+        service.status = events.append
+        recorder.stop = lambda: (_ for _ in ()).throw(RuntimeError("failure"))
+        service.press()
+        service.release()
+        self.assertEqual([], platform.inserted)
+        self.assertEqual(["local-processing-failed-capture-stop"], events)
 
     def test_terminal_outcomes_allow_a_following_dictation(self) -> None:
         service, platform, _, asr, cleanup, _ = self.make_service()
