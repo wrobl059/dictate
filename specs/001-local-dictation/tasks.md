@@ -4,70 +4,59 @@
 
 ## Dependencies
 
-`Setup → Foundations → P1 complete pipeline → P1 privacy/fidelity → P2 dictionary → P2 safe placement → P2 setup/devices → P2 context → P1 styles → platform validation → polish`.
+`Setup → foundations/readiness → complete safe local pipeline → privacy/fidelity → dictionary → setup/devices/context → styles → platform matrix → polish`.
 
-## Phase 1: Setup
+## Phase 1: Setup and Foundations
 
-- [ ] T001 Create `pyproject.toml` for Python 3.11+ with only `sounddevice` and `pynput` runtime dependencies, plus the `dictate` CLI entry point.
-- [ ] T002 Create the package skeleton in `src/dictate/` and `tests/{unit,integration,acceptance,fixtures}/` following `plan.md`.
-- [ ] T003 [P] Add `unittest` discovery and a metadata-only logging configuration test in `tests/unit/test_privacy.py`.
+- [ ] T001 Create `pyproject.toml` for Python 3.11+ with only `sounddevice` and `pynput`; `python -m dictate --help` exposes `setup`, `serve`, `doctor`, and `devices`.
+- [ ] T002 Create the package/test skeleton described in `plan.md`; `unittest` discovers an empty passing suite.
+- [ ] T003 Implement TOML defaults, text dictionaries, atomic preference writes, and state transitions; unit tests prove Natural/default microphone/default trigger selection and content clearing on every terminal state.
+- [ ] T004 Implement shared readiness checks for local runtimes/models, microphone, trigger, placement, and optional context capability; unit tests distinguish required readiness failure from non-blocking context limitation.
+- [ ] T005 Implement loopback-only endpoint validation and metadata-only logging; unit tests prove non-loopback inference is rejected before content can be sent.
+- [ ] T006 Define the narrow platform adapter contract for target snapshots, optional context, permissions, hotkeys, insertion, and explicit recovery.
 
-## Phase 2: Foundations
+## Phase 2: P1 Complete Safe Local Dictation Slice
 
-- [ ] T004 Implement TOML preferences, direct text-dictionary parsing, safe atomic preference writes, and defaults in `src/dictate/config.py` and `src/dictate/dictionary.py`.
-- [ ] T005 Implement the single-session state machine and memory-clearing terminal transitions in `src/dictate/session.py` with `tests/unit/test_session.py`.
-- [ ] T006 Implement loopback-only endpoint validation and content-redacting operational logging in `src/dictate/privacy.py` with `tests/unit/test_privacy.py`.
-- [ ] T007 Define the narrow platform adapter contract for target snapshots, context, permissions, hotkeys, and insertion in `src/dictate/platform/base.py`.
+**Goal**: Prove press → target snapshot → in-memory audio → local ASR → local Ollama cleanup → target revalidation → insert or explicit recovery.
 
-## Phase 3: P1 Complete Local Dictation Slice
+- [ ] T007 Implement default-microphone in-memory PCM capture and press/release lifecycle; unit tests prove press starts capture, release stops it, and empty capture inserts nothing.
+- [ ] T008 Implement supervised loopback whisper-server with resident model and memory-backed ASR submission; integration tests prove readiness, successful local transcription, and content-free local failure.
+- [ ] T009 Implement loopback Ollama cleanup using the blessed model, `think: false`, deterministic options, bounded context, keep-alive, and output-only validation; integration tests prove transformed text is returned and no answer is generated.
+- [ ] T010 Implement generic `pynput` press/release monitoring, target snapshot, target revalidation, and injection; unit tests prove an unverified target never receives injected text.
+- [ ] T011 Implement in-process recovery: on unsafe placement retain one final result for `dictate serve --recover` to print once to stdout, clear it immediately after read/timeout/exit, and never use clipboard; acceptance tests prove this lifecycle.
+- [ ] T012 Wire `dictate serve` through the complete pipeline with an intentionally empty dictionary in this first slice; integration tests prove ASR and Ollama are both mandatory stages.
+- [ ] T013 Add focus-change acceptance coverage: begin in target A, change to B, prove B receives no text and recovery is required.
+- [ ] T014 Add an observable offline end-to-end acceptance harness that blocks all non-loopback socket connections for the service process while allowing required loopback runtimes; prove the full pipeline still inserts output.
 
-**Goal**: Prove press → capture → local ASR → local cleanup → verified insertion.
+## Phase 3: Privacy and Faithful Cleanup
 
-- [ ] T008 Implement default-microphone in-memory PCM capture and press/release lifecycle in `src/dictate/audio.py` with `tests/unit/test_audio.py`.
-- [ ] T009 Implement whisper-server supervision, readiness, in-memory request submission, and local ASR failures in `src/dictate/asr.py` with `tests/integration/test_whisper.py`.
-- [ ] T010 Implement loopback Ollama cleanup using `urllib.request`, required model, `think: false`, deterministic options, bounded context, keep-alive, and transformed-text-only validation in `src/dictate/cleanup.py` with `tests/integration/test_cleanup_client.py`.
-- [ ] T011 Implement generic `pynput` press/release monitoring and injection adapter in `src/dictate/platform/generic.py` with `tests/unit/test_generic_platform.py`.
-- [ ] T012 Wire `dictate serve` orchestration in `src/dictate/service.py` and `src/dictate/cli.py`; require original target revalidation before insertion.
-- [ ] T013 Add an offline end-to-end acceptance test for the complete pipeline in `tests/acceptance/test_offline_pipeline.py`.
+- [ ] T015 Add fixed cleanup corpus and regression tests for filler, false starts, terms, questions, lists, and all styles; expected outputs preserve meaning and never answer or invent content.
+- [ ] T016 Add privacy regressions with unique sentinels for transcript, context, dictionary terms, prompt, output, and recovery result; inspect logs, config, temp locations, and artifacts after success/failure/cancellation and prove no sentinel persists.
+- [ ] T017 [Conditional] Only if memory-backed whisper submission is proven unavailable, implement restrictive temporary-audio creation/deletion; tests prove deletion after success, ASR failure, cancellation, and process interruption. Otherwise document that no temporary-audio path exists.
 
-## Phase 4: P1 Privacy and Faithful Cleanup
+## Phase 4: P2 Dictionary, Devices, Setup, Context, Styles
 
-- [ ] T014 Add fixed cleanup corpus covering filler, false starts, technical terms, dictated questions, lists, and Natural/Formal/Casual/Technical output in `tests/fixtures/cleanup-corpus.json` and `tests/integration/test_cleanup_corpus.py`.
-- [ ] T015 Add content-not-in-logs and no-persistent-artifact privacy regressions in `tests/acceptance/test_privacy.py`.
-- [ ] T016 Add cleanup failure tests proving discarded content, no insertion, and content-free errors in `tests/integration/test_processing_failures.py`.
+- [ ] T018 Implement global/project dictionary discovery and project-over-global precedence; unit tests prove dictionary terms reach both supported ASR prompting and cleanup prompt construction.
+- [ ] T019 Implement `setup`, `doctor`, and `devices` using shared readiness checks; command tests prove required failures are nonzero, optional context is a non-blocking limitation, and remediation is content-free.
+- [ ] T020 Implement explicit microphone selection and unavailable/disconnected/default-change failures; integration tests prove clear failure before recording.
+- [ ] T021 Implement bounded original-target context and permission handling; unit tests prove only allowed fields are collected and unavailable context does not block dictation.
+- [ ] T022 Implement Natural/Formal/Casual/Technical profiles; prompt tests prove style changes do not change substantive meaning.
 
-## Phase 5: P2 Dictionary and Safe Placement
+## Phase 5: Platform Matrix, Latency, and Polish
 
-- [ ] T017 Implement global/project dictionary discovery, merging, project-over-global precedence, and bounded ASR/cleanup term input with `tests/unit/test_dictionary.py`.
-- [ ] T018 Implement in-process explicit recovery-result lifecycle and focus-change suppression in `src/dictate/service.py` with `tests/acceptance/test_focus_safety.py`.
-
-## Phase 6: P2 Setup, Devices, and Failures
-
-- [ ] T019 Implement `dictate setup`, `dictate doctor`, and `dictate devices` in `src/dictate/cli.py`, requiring all approved readiness capabilities and content-free remediation.
-- [ ] T020 Implement explicit microphone selection, unavailable/disconnected/default-change failures, and tests in `src/dictate/audio.py` and `tests/integration/test_devices.py`.
-
-## Phase 7: P2 Context and Styles
-
-- [ ] T021 Implement bounded original-target context collection and permission failure handling in `src/dictate/context.py` with `tests/unit/test_context.py`.
-- [ ] T022 Implement Natural default and Formal/Casual/Technical profile selection in `src/dictate/config.py` and cleanup prompt construction with `tests/unit/test_prompt.py`.
-
-## Phase 8: Platform Refinement and Polish
-
-- [ ] T023 Implement macOS adapter/permission diagnostics and validate press-release, context, target verification, and insertion on macOS in `src/dictate/platform/macos.py`.
-- [ ] T024 Implement Windows adapter/permission diagnostics and validate equivalent outcomes on Windows in `src/dictate/platform/windows.py`.
-- [ ] T025 Implement Linux adapter/permission diagnostics and validate equivalent outcomes on Linux in `src/dictate/platform/linux.py`.
-- [ ] T026 Document installation, explicit local-runtime/model acquisition, configuration files, privacy behavior, and common diagnostics in `README.md`.
-- [ ] T027 Run the quickstart acceptance matrix and record platform results without user content in `specs/001-local-dictation/quickstart.md`.
+- [ ] T023 Define the shared macOS/Windows/Linux acceptance matrix for trigger, microphone, permissions, optional context, target safety, insertion/recovery, and diagnostics; it permits different low-level implementations.
+- [ ] T024 Validate macOS against the matrix and implement only required macOS adapter refinements; record pass/fail evidence without content.
+- [ ] T025 Validate Windows against the matrix and implement only required Windows adapter refinements; record pass/fail evidence without content.
+- [ ] T026 Validate Linux against the matrix and implement only required Linux adapter refinements; record pass/fail evidence without content.
+- [ ] T027 Add warmed-model latency acceptance fixtures: fixed short audio, release-to-visible-placement clock, five-second threshold, and pass/fail reporting for each platform.
+- [ ] T028 Document installation, explicit local model acquisition, defaults, privacy behavior, optional-context limitation, recovery command, and diagnostics in `README.md`.
 
 ## Parallel Opportunities
 
-After T002, T003 and T004 can proceed in parallel. After T007, T008, T009, T010, and T011 can proceed
-in parallel. After T012, T014 and T015 can proceed in parallel. T023–T025 can proceed in parallel.
+After T002, T003–T006 can proceed in parallel. After T006, T007–T010 can proceed in parallel. After T014,
+T015 and T016 can proceed in parallel. T024–T026 can proceed in parallel after T023.
 
 ## Implementation Strategy
 
-MVP is T001–T013: it includes local Ollama cleanup as part of the first vertical slice, not an optional
-later enhancement. Then complete privacy/fidelity gates, dictionary and placement safety, operational
-commands, bounded context/styles, and OS-specific refinement. Do not add GUI/TUI, cloud, telemetry,
-databases, plugin/provider frameworks, or generalized backend abstractions.
-
+MVP is T001–T014 and includes local Ollama cleanup as a mandatory stage. Do not add GUI/TUI, cloud,
+telemetry, databases, plugin/provider frameworks, or generalized backend abstractions.

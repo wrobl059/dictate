@@ -16,7 +16,7 @@
 - Q: If local speech recognition or cleanup fails, what should happen to the audio-derived result? → A: Discard audio and unusable intermediate content, insert nothing, and report a content-free actionable failure.
 - Q: What local destination context may be collected for a dictation session? → A: Collect only active application identity, active window/document identity, current selection, and a bounded nearby-text excerpt from the same original target; otherwise collect no context.
 - Q: If the same spoken term has different spellings in the global and applicable project-specific dictionaries, which spelling takes precedence? → A: The applicable project-specific entry takes precedence for that dictation session; otherwise use the global entry.
-- Q: When guided setup finishes, what must be true before it may report success? → A: All capabilities required: local processing, microphone, global trigger monitoring, safe text placement, and destination-context access are verified; otherwise setup provides platform-appropriate remediation and does not report success.
+- Q: When guided setup finishes, what must be true before it may report success? → A: Core dictation capabilities—local processing, microphone, global trigger monitoring, and safe text placement—are verified. Destination-context access is optional; setup reports its unavailability with remediation but normal dictation remains available without context.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -116,8 +116,8 @@ final local output.
 2. **Given** a project-specific dictionary applies to the active target, **When** the user dictates,
    **Then** applicable project terms supplement rather than replace global dictionary terms.
 3. **Given** destination-context access is unavailable or permission is denied, **When** the user runs
-   setup, **Then** setup does not report success, does not broaden collection, and provides
-   platform-appropriate remediation instructions.
+   setup, **Then** setup reports the limited enhancement and remediation, does not broaden collection,
+   and normal dictation remains available without context.
 
 ---
 
@@ -241,9 +241,9 @@ available for explicit recovery.
   placement, including because focus changed, the system MUST NOT insert text into any destination and
   MUST preserve any generated result only for explicit local user recovery.
 - **FR-019**: Setup MUST report success only after it verifies required local components and models,
-  local processing, a usable microphone, global trigger monitoring, safe text-placement capability,
-  and destination-context access. If any required capability is unavailable, setup MUST NOT report
-  success and MUST provide platform-appropriate remediation instructions.
+  local processing, a usable microphone, global trigger monitoring, and safe text-placement capability.
+  Destination-context access is optional: if unavailable, setup MUST report the limitation and
+  platform-appropriate remediation without preventing normal dictation without context.
 - **FR-020**: Diagnostics MUST report actionable readiness and failure information without exposing
   audio, transcripts, destination context, cleanup instructions, or generated text.
 - **FR-021**: The system MUST preserve normal dictation privacy and local-only behavior when a
@@ -308,9 +308,9 @@ available for explicit recovery.
 - Local recovery is an explicit, user-controlled action and is designed to avoid placing generated
   text into an unrelated field; its precise interaction is deferred to planning as long as it remains
   command-line compatible and local-only.
-- Destination-context access is a required first-run readiness capability. Setup does not report success
-  when it is unavailable, unsupported, or denied; it provides platform-appropriate remediation instead
-  and does not broaden collection to compensate.
+- Destination-context access is an optional enhancement. When it is unavailable, unsupported, or denied,
+  setup reports platform-appropriate remediation, normal dictation continues without context, and the
+  service does not broaden collection to compensate.
 - The stated success-criterion sample sizes and latency target are initial acceptance thresholds that
   may be refined during planning only if privacy, correctness, and offline operation are preserved.
 
