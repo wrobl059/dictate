@@ -33,8 +33,13 @@ def _prompt(transcript: str, style: str, terms: Sequence[str], context: str | No
 	term_text = ", ".join(terms) or "(none)"
 	context_text = context or "(none)"
 	return (
-		"Transform the dictated transcript into polished writing. Preserve intended meaning and supplied terms. "
-		"Do not answer questions, add facts, explain, reason aloud, or invent content. Return only the transformed text.\n"
+		"Transform the dictated transcript into polished writing while preserving its intended meaning, substantive "
+		"wording, emphasis, and supplied terms. Make necessary edits for punctuation, capitalization, grammar, "
+		"and dictated formatting. Remove conversational filler, hesitations, repetitions, and abandoned phrasing "
+		"when they do not contribute meaning, and resolve explicit false starts or self-corrections. Do not paraphrase, "
+		"substitute synonyms, summarize, infer unstated intent, reinterpret, or otherwise change word choice. "
+		"Style may affect formatting and tone, not substance. Do not answer questions, add facts, "
+		"explain, reason aloud, or invent content. Return only the transformed text.\n"
 		f"Style: {style}\nProfile: {_PROFILES[style]}\nTerms: {term_text}\nContext: {context_text}\nTranscript: {transcript}"
 	)
 

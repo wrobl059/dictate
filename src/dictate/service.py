@@ -216,6 +216,7 @@ class DictationService:
             output = self.cleanup.clean(transcript, self.preferences.style, terms=self._terms, context=self.session.context)
             if not isinstance(output, str) or not output.strip():
                 raise ValueError("local cleanup returned no usable output")
+            output = output.rstrip() + " "
             self.session.output = output
             stage = "placement"
             self.session.transition(SessionState.VALIDATING_TARGET)

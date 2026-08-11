@@ -46,7 +46,7 @@ class FocusSafetyAcceptanceTests(unittest.TestCase):
         platform.active = TargetSnapshot("app", "B", "field")
         service.release()
         self.assertEqual([], platform.writes)
-        self.assertEqual("polished", recovery.take())
+        self.assertEqual("polished ", recovery.take())
 
 
 if __name__ == "__main__":

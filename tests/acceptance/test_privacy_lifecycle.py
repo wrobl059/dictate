@@ -65,7 +65,7 @@ class PrivacyLifecycleAcceptanceTests(unittest.TestCase):
             cleanup = SimpleNamespace(clean=lambda transcript, style, terms=(), context=None: markers[4])
             service = DictationService(Preferences(), platform, recorder, asr, cleanup, recovery=RecoveryStore())
             service.press(); service.release()
-            self.assertEqual([markers[4]], writes)
+            self.assertEqual([markers[4] + " "], writes)
             self.assertEqual(SessionState.IDLE, service.session.state)
             self.assertTrue(all(getattr(service.session, field) is None for field in ("audio", "transcript", "context", "prompt", "output")))
             persisted = "".join(path.read_text(encoding="utf-8", errors="ignore") for path in Path(directory).rglob("*") if path.is_file())

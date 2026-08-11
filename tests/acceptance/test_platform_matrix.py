@@ -73,7 +73,7 @@ class PlatformMatrixAcceptanceTests(unittest.TestCase):
                 service.release()
 
                 self.assertEqual([], platform.writes)
-                self.assertEqual("fixture", recovery.take())
+                self.assertEqual("fixture ", recovery.take())
                 service.stop()
 
 

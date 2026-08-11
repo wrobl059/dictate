@@ -74,8 +74,9 @@ application-managed storage, and verify that dictated and contextual test conten
 ### User Story 3 - Produce Faithful Polished Writing (Priority: P1)
 
 A user dictates natural speech and receives readable prose with appropriate punctuation,
-capitalization, paragraphs, and lists. The service removes ordinary filler and resolves explicit
-false starts or self-corrections while retaining the meaning of what the user said.
+capitalization, paragraphs, and lists. The service smooths non-semantic conversational filler,
+hesitations, repetitions, and abandoned phrasing, and resolves explicit false starts or
+self-corrections while retaining the user's substantive wording and intended meaning.
 
 **Why this priority**: Raw transcription alone does not deliver the promised writing-assistant
 experience; faithful cleanup is essential to its value and safety.
@@ -86,8 +87,9 @@ question nor adds unsupported facts.
 
 **Acceptance Scenarios**:
 
-1. **Given** a dictation includes ordinary filler and an explicit self-correction, **When** cleanup
-   completes, **Then** the resulting text omits the filler and reflects the corrected intent.
+1. **Given** a dictation includes conversational filler, hesitations, repetitions, or an explicit
+   self-correction, **When** cleanup completes, **Then** the resulting text omits non-semantic
+   disfluencies and reflects the corrected intent without unnecessary rewording.
 2. **Given** a user dictates a question, **When** cleanup completes, **Then** the output renders the
    dictated question but does not answer it.
 3. **Given** a user selects a built-in writing style, **When** cleanup completes, **Then** style
@@ -259,9 +261,12 @@ available for explicit recovery.
 - **FR-011**: The system MUST offer built-in Natural, Formal, Casual, and Technical writing styles,
   select Natural by default, and apply style only to cleanup and formatting rather than substantive
   meaning.
-- **FR-012**: Cleanup MUST preserve the user's intended meaning; it MAY remove ordinary filler and
-  resolve explicit false starts or self-corrections, and it MUST apply appropriate punctuation,
-  capitalization, paragraphing, and list formatting when supported by the dictated content.
+- **FR-012**: Cleanup MUST preserve the user's intended meaning, substantive wording, emphasis, and
+  supplied terminology; it MUST NOT paraphrase, substitute synonyms, summarize, infer unstated intent, or
+  reinterpret the dictated content. It MAY remove conversational filler, hesitations, repetitions, and
+  abandoned phrasing when they do not contribute meaning, and resolve explicit false starts or
+  self-corrections. It MUST apply appropriate punctuation, capitalization, paragraphing, and list formatting
+  when supported by the dictated content.
 - **FR-013**: Cleanup MUST NOT answer dictated questions, invent facts, add substantive content, or
   alter supplied terminology beyond formatting necessary for the selected writing style.
 - **FR-014**: The system MUST provide directly user-editable local global dictionary data for known

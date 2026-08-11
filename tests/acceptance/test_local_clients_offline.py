@@ -82,7 +82,7 @@ class LocalClientOfflineAcceptanceTests(unittest.TestCase):
                     WhisperServer(endpoint), OllamaClient(endpoint, "qwen3:4b-instruct-2507-q4_K_M"), recovery=RecoveryStore(),
                 )
                 service.press(); service.release()
-                if platform.inserted != "polished": raise SystemExit("local clients did not complete pipeline")
+                if platform.inserted != "polished ": raise SystemExit("local clients did not complete pipeline")
                 if list(Path(directory).iterdir()): raise SystemExit("pipeline persisted an artifact")
             server.shutdown(); server.server_close()
             print("local-clients-offline-pass")

@@ -36,6 +36,9 @@ class CleanupCorpusIntegrationTests(unittest.TestCase):
                 prompt = client.payload["prompt"]
                 self.assertIn(f"Style: {case['style']}", prompt)
                 self.assertIn(f"Transcript: {case['transcript']}", prompt)
+                self.assertIn("preserving its intended meaning, substantive wording, emphasis", prompt)
+                self.assertIn("Remove conversational filler, hesitations, repetitions, and abandoned phrasing", prompt)
+                self.assertIn("Do not paraphrase, substitute synonyms, summarize, infer unstated intent", prompt)
                 for term in case["terms"]:
                     self.assertIn(term, prompt)
                 if case["context"]:

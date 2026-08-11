@@ -76,13 +76,14 @@ class PipelineTests(unittest.TestCase):
 
     def test_press_snapshots_then_starts_and_release_runs_mandatory_pipeline(self) -> None:
         service, platform, recorder, asr, cleanup, _ = self.make_service()
+        cleanup.text = "Polished words   \n"
         service.press()
         self.assertTrue(recorder.started)
         service.release()
         self.assertTrue(recorder.stopped)
         self.assertEqual([(b"pcm", ())], asr.calls)
         self.assertEqual(("spoken words", "Natural", (), None), cleanup.calls[0])
-        self.assertEqual([(platform.target, "Polished words")], platform.inserted)
+        self.assertEqual([(platform.target, "Polished words ")], platform.inserted)
         self.assertEqual([platform.target], platform.released)
         self.assertEqual(SessionState.IDLE, service.session.state)
 
@@ -103,7 +104,7 @@ class PipelineTests(unittest.TestCase):
         service.release()
         self.assertEqual([], platform.inserted)
         self.assertEqual(SessionState.IDLE, service.session.state)
-        self.assertEqual("Polished words", recovery.take())
+        self.assertEqual("Polished words ", recovery.take())
         self.assertIsNone(recovery.take())
 
     def test_asr_or_cleanup_failure_never_inserts(self) -> None:
