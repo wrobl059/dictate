@@ -44,12 +44,12 @@
 
 ## Phase 5: Platform Matrix, Latency, and Polish
 
-- [ ] T023 Define the shared macOS/Windows/Linux acceptance matrix for trigger, microphone, permissions, optional context, target safety, insertion/recovery, and diagnostics; it permits different low-level implementations.
-- [ ] T024 Validate macOS against the matrix and implement only required macOS adapter refinements; record pass/fail evidence without content.
-- [ ] T025 Validate Windows against the matrix and implement only required Windows adapter refinements; record pass/fail evidence without content.
-- [ ] T026 Validate Linux against the matrix and implement only required Linux adapter refinements; record pass/fail evidence without content.
-- [ ] T027 Add warmed-model latency acceptance fixtures: fixed short audio, release-to-visible-placement clock, five-second threshold, and pass/fail reporting for each platform.
-- [ ] T028 Document installation, explicit local model acquisition, defaults, privacy behavior, optional-context limitation, recovery command, and diagnostics in `README.md`.
+- [X] T023 Define the shared macOS/Windows/Linux acceptance matrix for trigger, microphone, permissions, optional context, target safety, insertion/recovery, and diagnostics; it permits different low-level implementations.
+- [X] T024 Validate macOS against the matrix and implement only required macOS adapter refinements; record pass/fail evidence without content.
+- [X] T025 Validate Windows against the matrix and implement only required Windows adapter refinements; record pass/fail evidence without content.
+- [X] T026 Validate Linux against the matrix and implement only required Linux adapter refinements; record pass/fail evidence without content.
+- [X] T027 Add warmed-model latency acceptance fixtures: fixed short audio, release-to-visible-placement clock, five-second threshold, and pass/fail reporting for each platform.
+- [X] T028 Document installation, explicit local model acquisition, defaults, privacy behavior, optional-context limitation, recovery command, and diagnostics in `README.md`.
 
 ## Parallel Opportunities
 

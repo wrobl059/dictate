@@ -33,6 +33,18 @@ class ReadinessResult:
         return not self.required_failures
 
 
+@dataclass(frozen=True)
+class PlacementTiming:
+    """Content-free timing from trigger release to terminal placement outcome."""
+
+    duration_ms: int
+    outcome: str
+
+    @property
+    def meets_five_second_target(self) -> bool:
+        return self.outcome == "inserted" and self.duration_ms <= 5_000
+
+
 def check_readiness(preferences: Preferences, boundary: ReadinessBoundary) -> ReadinessResult:
     """Check every required local capability without collecting user content."""
     try:
@@ -113,6 +125,8 @@ class DictationService:
         recovery: RecoveryStore = DEFAULT_RECOVERY,
         status: Callable[[str], None] | None = None,
         terms_for_target: Callable[[TargetSnapshot], Sequence[str]] | None = None,
+        clock: Callable[[], float] = time.monotonic,
+        timing_reporter: Callable[[PlacementTiming], None] | None = None,
     ) -> None:
         self.preferences = preferences
         self.platform = platform
@@ -122,6 +136,8 @@ class DictationService:
         self.recovery = recovery
         self.status = status or (lambda _event: None)
         self.terms_for_target = terms_for_target or (lambda _target: ())
+        self._clock = clock
+        self._timing_reporter = timing_reporter or (lambda _timing: None)
         self.session = DictationSession()
         self._target: TargetSnapshot | None = None
         self._terms: tuple[str, ...] = ()
@@ -181,11 +197,14 @@ class DictationService:
     def release(self) -> None:
         if self.session.state is not SessionState.RECORDING:
             return
+        released_at = self._clock()
+        outcome = "local-processing-failed"
         try:
             audio = self.recorder.stop()
             self.session.audio = audio
             if not audio:
                 self._fail("empty-capture")
+                outcome = "empty-capture"
                 return
             self.session.transition(SessionState.RECOGNIZING)
             transcript = self.asr.transcribe(audio, terms=self._terms)
@@ -199,12 +218,16 @@ class DictationService:
                 self.recovery.put(output)
                 self.session.transition(SessionState.RECOVERY)
                 self.status("recovery-required")
+                outcome = "recovery-required"
                 return
             self.session.transition(SessionState.INSERTED)
             self.status("inserted")
+            outcome = "inserted"
         except Exception:
             self._fail("local-processing-failed")
         finally:
+            duration_ms = max(0, round((self._clock() - released_at) * 1_000))
+            self._timing_reporter(PlacementTiming(duration_ms, outcome))
             self._target = None
             self._terms = ()
 
