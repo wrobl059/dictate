@@ -1,8 +1,8 @@
 """Conservative Linux integration without display-server-specific target inspection."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
-from dictate.platform.base import Capability, PlatformAdapter, TargetSnapshot
+from dictate.platform.base import AcquisitionResult, Capability, PlatformAdapter, TargetSnapshot
 from dictate.platform.generic import PynputHotkey
 
 
@@ -12,6 +12,18 @@ class LinuxAdapter(PlatformAdapter):
     def __init__(self, hotkey_factory: Callable[..., PynputHotkey] = PynputHotkey) -> None:
         self._hotkey_factory = hotkey_factory
         self._hotkey: PynputHotkey | None = None
+
+    def acquire_external_runtime(self, component: str, runner: Callable[[Sequence[str]], bool]) -> AcquisitionResult:
+        packages = {"whisper-runtime": "whisper-cpp", "ollama-runtime": "ollama"}
+        package = packages.get(component)
+        if package is None:
+            return AcquisitionResult(False, "unsupported local runtime acquisition")
+        try:
+            return AcquisitionResult(True) if runner(("apt-get", "install", "--yes", package)) else AcquisitionResult(False, "local runtime acquisition failed")
+        except PermissionError:
+            return AcquisitionResult(False, "grant authorization for local runtime installation")
+        except OSError:
+            return AcquisitionResult(False, "make local storage and network access available for installation")
 
     def microphone_permission(self) -> Capability:
         return Capability(True)

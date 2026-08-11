@@ -17,6 +17,17 @@ class Hotkey:
 
 
 class PlatformAdapterTests(unittest.TestCase):
+    def test_platform_runtime_acquisition_uses_one_documented_route(self) -> None:
+        for adapter_type in (MacOSAdapter, WindowsAdapter, LinuxAdapter):
+            with self.subTest(adapter=adapter_type.__name__):
+                commands: list[tuple[str, ...]] = []
+                result = adapter_type(lambda *_args: Hotkey()).acquire_external_runtime(
+                    "whisper-runtime", lambda command: commands.append(tuple(command)) or True
+                )
+                self.assertTrue(result.acquired)
+                self.assertEqual(1, len(commands))
+                self.assertFalse(adapter_type(lambda *_args: Hotkey()).acquire_external_runtime("unknown", lambda _command: True).acquired)
+
     def test_all_platform_adapters_are_instantiable_and_fail_closed_for_target_safety(self) -> None:
         for adapter_type in (MacOSAdapter, WindowsAdapter, LinuxAdapter):
             with self.subTest(adapter=adapter_type.__name__):

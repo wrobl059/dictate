@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class Capability:
     available: bool
+    remediation: str | None = None
+
+
+@dataclass(frozen=True)
+class AcquisitionResult:
+    """Content-free result from an OS-specific runtime acquisition route."""
+
+    acquired: bool
     remediation: str | None = None
 
 
@@ -20,6 +29,12 @@ class TargetSnapshot:
 
 
 class PlatformAdapter(ABC):
+    def acquire_external_runtime(
+        self, component: str, runner: Callable[[Sequence[str]], bool]
+    ) -> AcquisitionResult:
+        """Reject acquisition unless a concrete OS adapter provides one explicit route."""
+        return AcquisitionResult(False, "unsupported local runtime acquisition")
+
     @abstractmethod
     def microphone_permission(self) -> Capability: ...
 

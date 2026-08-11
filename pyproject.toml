@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dictate = "dictate.cli:main"
+dictate = "dictate.bootstrap:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

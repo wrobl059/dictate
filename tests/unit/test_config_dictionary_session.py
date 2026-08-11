@@ -25,6 +25,18 @@ class ConfigDictionarySessionTests(unittest.TestCase):
             self.assertEqual(saved, load_preferences(path))
             self.assertFalse(list(Path(directory).glob(".preferences.toml.*")))
 
+    def test_verified_whisper_locations_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "preferences.toml"
+            saved = Preferences(whisper_server_executable=str(root / "whisper-server"), whisper_model_path=str(root / "ggml-base.bin"))
+            save_preferences(path, saved)
+            self.assertEqual(saved, load_preferences(path))
+
+    def test_relative_whisper_location_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "absolute local path"):
+            save_preferences(Path(tempfile.gettempdir()) / "dictate-invalid.toml", Preferences(whisper_model_path="relative-model.bin"))
+
     def test_project_dictionary_overrides_global_spelling(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "dictionary.txt"

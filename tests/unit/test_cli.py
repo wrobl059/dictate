@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from dictate.audio import AudioInputDevice
+from dictate.installer import ComponentResult
 from dictate.service import ReadinessResult
 
 
@@ -40,6 +41,33 @@ class CliTests(unittest.TestCase):
         self.assertEqual(1, result)
         self.assertEqual("", stdout)
         self.assertEqual("doctor: not ready: microphone: connect-a-microphone\n", stderr)
+
+    @patch("dictate.cli.load_preferences")
+    @patch("dictate.cli.InstallerCoordinator")
+    @patch("dictate.cli.check_readiness", return_value=ReadinessResult((), ()))
+    @patch("dictate.cli.current_platform", return_value=object())
+    def test_explicit_setup_prints_ordered_statuses_before_final_ready(self, _platform: object, _readiness: object, coordinator_type: object, load: object) -> None:
+        from dictate.config import Preferences
+
+        preferences = Preferences()
+        load.return_value = preferences  # type: ignore[attr-defined]
+        coordinator_type.return_value.install.return_value = (  # type: ignore[attr-defined]
+            ComponentResult("python-dependencies", "retained"),
+            ComponentResult("whisper-runtime", "acquired"),
+        )
+        result, stdout, stderr = self.invoke(["setup", "--install-dependencies"])
+        self.assertEqual(0, result)
+        self.assertEqual("setup: ready\n", stdout)
+        self.assertLess(stderr.index("python-dependencies: retained"), stderr.index("whisper-runtime: acquired"))
+
+    @patch("dictate.cli.InstallerCoordinator")
+    @patch("dictate.cli.current_platform", return_value=object())
+    def test_failed_install_never_reports_ready(self, _platform: object, coordinator_type: object) -> None:
+        coordinator_type.return_value.install.return_value = (ComponentResult("whisper-model", "failed", "network unavailable"),)  # type: ignore[attr-defined]
+        result, stdout, stderr = self.invoke(["setup", "--install-dependencies"])
+        self.assertEqual(1, result)
+        self.assertEqual("", stdout)
+        self.assertIn("whisper-model: failed", stderr)
 
 
 if __name__ == "__main__":

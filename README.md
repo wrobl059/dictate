@@ -11,9 +11,8 @@ It has no cloud fallback, telemetry, web service, GUI, database, clipboard fallb
 ## Requirements
 
 - Python 3.11 or newer
-- The package dependencies installed from `pyproject.toml`: `sounddevice` and `pynput`
-- A locally installed `whisper.cpp` server and local speech model
-- [Ollama](https://ollama.com/) running locally with `qwen3:4b-instruct-2507-q4_K_M` acquired explicitly by the user
+- A Dictate installation; `dictate setup --install-dependencies` repairs the declared Python package dependencies when needed
+- Local storage, network access, and any platform authorization required for the one-time explicit acquisition
 - A microphone and platform permissions for microphone access, global keyboard monitoring, and verified text placement
 
 Local runtime and model installation is a user-initiated setup operation. Normal dictation must work with the Internet disconnected after those local components are ready.
@@ -24,21 +23,30 @@ Local runtime and model installation is a user-initiated setup operation. Normal
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
-ollama pull qwen3:4b-instruct-2507-q4_K_M
+dictate setup --install-dependencies
 ```
 
-Install `whisper.cpp` and its model using its local installation instructions, then start its loopback-only server. Do not configure either inference endpoint to a non-loopback address.
+This is the only command that installs or downloads dependencies. It acquires or retains the supported
+whisper.cpp runtime, `ggml-base.bin` speech model, Ollama runtime, and
+`qwen3:4b-instruct-2507-q4_K_M` cleanup model, then verifies local readiness. Repeat it safely: verified
+components are retained. If a platform route, authorization, storage, network connection, download, or
+verification fails, setup names only the affected component and remediation; it never reports ready after
+partial acquisition. Do not configure either inference endpoint to a non-loopback address.
 
 ## Command contract
 
 ```bash
 dictate setup
+dictate setup --install-dependencies
 dictate devices
 dictate doctor
 dictate serve
 ```
 
-- `setup` verifies the required local components and reports ready only when they are available.
+- `setup` only verifies the required local components. It never downloads or changes host software; missing
+  default runtime/model components are remediated with `dictate setup --install-dependencies`.
+- `setup --install-dependencies` is the explicit, content-free acquisition path. Normal dictation and all
+  other commands remain offline-capable after it succeeds.
 - `devices` lists local input identifiers and display names without recording.
 - `doctor` prints content-free readiness failures and platform-specific remediation.
 - `serve` starts the local push-to-talk pipeline only after required local readiness checks pass.
@@ -55,6 +63,7 @@ A fresh configuration uses one supported pipeline:
 | Trigger | `right_alt` |
 | Style | `Natural` |
 | Local ASR endpoint | `http://127.0.0.1:8080` |
+| Speech model | `ggml-base.bin` |
 | Local Ollama endpoint | `http://127.0.0.1:11434` |
 | Cleanup model | `qwen3:4b-instruct-2507-q4_K_M` |
 | Context limit | 1,024 characters |

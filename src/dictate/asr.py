@@ -9,9 +9,10 @@ import urllib.error
 import urllib.request
 import wave
 from collections.abc import Callable, Sequence
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, urljoin, urlparse
 
-from dictate.privacy import PrivacyError, validate_loopback_url
+from dictate.config import Preferences
+from dictate.privacy import validate_loopback_url
 
 
 class ASRError(RuntimeError):
@@ -31,6 +32,17 @@ def _wav(pcm: bytes) -> bytes:
 		output.setframerate(16_000)
 		output.writeframes(pcm)
 	return buffer.getvalue()
+
+
+def whisper_server_command(preferences: Preferences) -> tuple[str, ...]:
+	"""Build the loopback-only command from installer-verified local artifacts."""
+	if not preferences.whisper_server_executable or not preferences.whisper_model_path:
+		raise ASRError("local ASR runtime and model must be installed")
+	endpoint = urlparse(preferences.asr_endpoint)
+	validate_loopback_url(preferences.asr_endpoint)
+	if endpoint.port is None:
+		raise ASRError("local ASR endpoint must include a port")
+	return (preferences.whisper_server_executable, "--model", preferences.whisper_model_path, "--host", endpoint.hostname or "127.0.0.1", "--port", str(endpoint.port))
 
 
 class WhisperServer:

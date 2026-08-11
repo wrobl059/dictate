@@ -1,8 +1,8 @@
 """Conservative Windows integration without a native target-inspection dependency."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
-from dictate.platform.base import Capability, PlatformAdapter, TargetSnapshot
+from dictate.platform.base import AcquisitionResult, Capability, PlatformAdapter, TargetSnapshot
 from dictate.platform.generic import PynputHotkey
 
 
@@ -12,6 +12,18 @@ class WindowsAdapter(PlatformAdapter):
     def __init__(self, hotkey_factory: Callable[..., PynputHotkey] = PynputHotkey) -> None:
         self._hotkey_factory = hotkey_factory
         self._hotkey: PynputHotkey | None = None
+
+    def acquire_external_runtime(self, component: str, runner: Callable[[Sequence[str]], bool]) -> AcquisitionResult:
+        packages = {"whisper-runtime": "ggerganov.whisper.cpp", "ollama-runtime": "Ollama.Ollama"}
+        package = packages.get(component)
+        if package is None:
+            return AcquisitionResult(False, "unsupported local runtime acquisition")
+        try:
+            return AcquisitionResult(True) if runner(("winget", "install", "--id", package, "--exact")) else AcquisitionResult(False, "local runtime acquisition failed")
+        except PermissionError:
+            return AcquisitionResult(False, "grant authorization for local runtime installation")
+        except OSError:
+            return AcquisitionResult(False, "make local storage and network access available for installation")
 
     def microphone_permission(self) -> Capability:
         return Capability(True)

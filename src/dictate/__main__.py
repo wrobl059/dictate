@@ -1,4 +1,4 @@
-from dictate.cli import main
+from dictate.bootstrap import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

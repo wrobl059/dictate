@@ -15,6 +15,7 @@ DEFAULT_TRIGGER = "right_alt"
 DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
 DEFAULT_ASR_ENDPOINT = "http://127.0.0.1:8080"
 DEFAULT_OLLAMA_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
+DEFAULT_WHISPER_MODEL = "ggml-base.bin"
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,8 @@ class Preferences:
     ollama_endpoint: str = DEFAULT_OLLAMA_ENDPOINT
     ollama_model: str = DEFAULT_OLLAMA_MODEL
     context_limit: int = 1_024
+    whisper_server_executable: str | None = None
+    whisper_model_path: str | None = None
 
 
 def validate_preferences(preferences: Preferences) -> Preferences:
@@ -52,6 +55,11 @@ def validate_preferences(preferences: Preferences) -> Preferences:
     validate_loopback_url(preferences.ollama_endpoint)
     if not preferences.ollama_model:
         raise ValueError("ollama_model must not be empty")
+    for name in ("whisper_server_executable", "whisper_model_path"):
+        value = getattr(preferences, name)
+        if value is not None:
+            if not isinstance(value, str) or not value or "\x00" in value or not Path(value).is_absolute():
+                raise ValueError(f"{name} must be an absolute local path when configured")
     return preferences
 
 
@@ -60,7 +68,7 @@ def load_preferences(path: Path) -> Preferences:
         return validate_preferences(Preferences())
     with path.open("rb") as file:
         data = tomllib.load(file)
-    unknown = set(data) - set(Preferences.__dataclass_fields__)
+    unknown = set(data) - set(Preferences.__annotations__)
     if unknown:
         raise ValueError(f"unknown preference: {sorted(unknown)[0]}")
     try:
@@ -73,7 +81,7 @@ def load_preferences(path: Path) -> Preferences:
 def save_preferences(path: Path, preferences: Preferences) -> None:
     preferences = validate_preferences(preferences)
     path.parent.mkdir(parents=True, exist_ok=True)
-    content = "\n".join(f'{name} = {value!r}' for name, value in vars(preferences).items()) + "\n"
+    content = "\n".join(f'{name} = {value!r}' for name, value in vars(preferences).items() if value is not None) + "\n"
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as file:
