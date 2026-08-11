@@ -21,6 +21,11 @@ produce the smallest request representation whisper.cpp accepts.
 Device-native mismatch is converted in Python memory. A temporary file is a last resort only when a
 verified server interface cannot consume an in-memory request; it must be securely deleted and tested.
 
+**Phase 3 status**: The implemented ASR client constructs the 16 kHz mono WAV request in `io.BytesIO`
+and submits it directly to the loopback server. There is no normal temporary-audio path. T017 therefore
+does not add a file fallback; it remains conditional on evidence that the memory-backed protocol is
+unavailable.
+
 ## Ollama cleanup
 
 **Decision**: Use `urllib.request` only against loopback Ollama, model

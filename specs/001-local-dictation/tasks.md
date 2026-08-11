@@ -30,9 +30,9 @@
 
 ## Phase 3: Privacy and Faithful Cleanup
 
-- [ ] T015 Add fixed cleanup corpus and regression tests for filler, false starts, terms, questions, lists, and all styles; expected outputs preserve meaning and never answer or invent content.
-- [ ] T016 Add privacy regressions with unique sentinels for transcript, context, dictionary terms, prompt, output, and recovery result; inspect logs, config, temp locations, and artifacts after success/failure/cancellation and prove no sentinel persists.
-- [ ] T017 [Conditional] Only if memory-backed whisper submission is proven unavailable, implement restrictive temporary-audio creation/deletion; tests prove deletion after success, ASR failure, cancellation, and process interruption. Otherwise document that no temporary-audio path exists.
+- [X] T015 Add fixed cleanup corpus and regression tests for filler, false starts, terms, questions, lists, and all styles; expected outputs preserve meaning and never answer or invent content.
+- [X] T016 Add privacy regressions with unique sentinels for transcript, context, dictionary terms, prompt, output, and recovery result; inspect logs, config, temp locations, and artifacts after success/failure/cancellation and prove no sentinel persists.
+- [X] T017 [Conditional] Only if memory-backed whisper submission is proven unavailable, implement restrictive temporary-audio creation/deletion; tests prove deletion after success, ASR failure, cancellation, and process interruption. Otherwise document that no temporary-audio path exists.
 
 ## Phase 4: P2 Dictionary, Devices, Setup, Context, Styles
 

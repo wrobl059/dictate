@@ -127,11 +127,29 @@ class DictationService:
         self.platform.start_hotkey(self.preferences.trigger, self.press, self.release)
 
     def stop(self) -> None:
-        self.platform.stop_hotkey()
-        self.asr.stop()
-        self.recovery.clear()
-        self._target = None
-        self.session.clear_content()
+        try:
+            self.platform.stop_hotkey()
+        finally:
+            try:
+                if self.session.state is SessionState.RECORDING:
+                    try:
+                        self.recorder.stop()
+                    except Exception:
+                        pass
+                    finally:
+                        self.recorder.discard()
+                elif self.session.state not in (SessionState.IDLE, SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
+                    self.recorder.discard()
+            finally:
+                try:
+                    self.asr.stop()
+                finally:
+                    self.recovery.clear()
+                    self._target = None
+                    if self.session.state not in (SessionState.IDLE, SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
+                        self.session.fail()
+                    else:
+                        self.session.clear_content()
 
     def press(self) -> None:
         if self.session.state is not SessionState.IDLE:

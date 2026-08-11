@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import re
 import socket
 from collections.abc import Mapping
 from urllib.parse import ParseResult, urlparse
 
 _CONTENT_KEYS = frozenset({"audio", "transcript", "context", "prompt", "output", "text", "content"})
 _METADATA_KEYS = frozenset({"status", "error", "duration_ms", "size_bytes", "component", "reason"})
+_EVENTS = frozenset({"ready", "finished", "inserted", "recovery-required", "dictation-busy", "target-unavailable", "recording-unavailable", "empty-capture", "local-processing-failed"})
+_CODE = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 
 
 class PrivacyError(ValueError):
@@ -34,7 +37,13 @@ def log_metadata(logger: logging.Logger, event: str, metadata: Mapping[str, obje
     values = dict(metadata or {})
     invalid = set(values) - _METADATA_KEYS
     prohibited = set(values) & _CONTENT_KEYS
-    if invalid or prohibited:
+    if event not in _EVENTS or invalid or prohibited:
         raise PrivacyError("ordinary logs may contain operational metadata only")
+    for key in ("status", "error", "component", "reason"):
+        if key in values and (not isinstance(values[key], str) or not _CODE.fullmatch(values[key])):
+            raise PrivacyError("ordinary logs may contain only fixed operational codes")
+    for key in ("duration_ms", "size_bytes"):
+        if key in values and (isinstance(values[key], bool) or not isinstance(values[key], int) or values[key] < 0):
+            raise PrivacyError("ordinary logs may contain only non-negative metadata sizes or durations")
     logger.info("%s %s", event, " ".join(f"{key}={values[key]!r}" for key in sorted(values)))
 

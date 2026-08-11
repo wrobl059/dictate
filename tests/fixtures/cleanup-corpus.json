@@ -1,2 +1,43 @@
-[]
+[
+  {
+	"id": "natural-filler",
+	"transcript": "um please send the report",
+	"style": "Natural",
+	"terms": [],
+	"context": null,
+	"expected": "Please send the report."
+  },
+  {
+	"id": "formal-correction",
+	"transcript": "send it on Monday no Tuesday",
+	"style": "Formal",
+	"terms": [],
+	"context": null,
+	"expected": "Please send it on Tuesday."
+  },
+  {
+	"id": "casual-terminology",
+	"transcript": "can you merge the ollama change",
+	"style": "Casual",
+	"terms": ["Ollama"],
+	"context": null,
+	"expected": "Can you merge the Ollama change?"
+  },
+  {
+	"id": "technical-question",
+	"transcript": "what is the timeout for the asr service",
+	"style": "Technical",
+	"terms": ["ASR"],
+	"context": "Service configuration",
+	"expected": "What is the timeout for the ASR service?"
+  },
+  {
+	"id": "natural-list",
+	"transcript": "buy apples bananas and coffee",
+	"style": "Natural",
+	"terms": [],
+	"context": null,
+	"expected": "Buy apples, bananas, and coffee."
+  }
+]
 
