@@ -81,7 +81,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual([(b"pcm", ())], asr.calls)
         self.assertEqual(("spoken words", "Natural", (), None), cleanup.calls[0])
         self.assertEqual([(platform.target, "Polished words")], platform.inserted)
-        self.assertEqual(SessionState.INSERTED, service.session.state)
+        self.assertEqual(SessionState.IDLE, service.session.state)
 
     def test_empty_audio_never_reaches_asr_cleanup_or_insertion(self) -> None:
         service, platform, _, asr, cleanup, _ = self.make_service(audio=b"")
@@ -90,7 +90,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual([], asr.calls)
         self.assertEqual([], cleanup.calls)
         self.assertEqual([], platform.inserted)
-        self.assertEqual(SessionState.FAILED, service.session.state)
+        self.assertEqual(SessionState.IDLE, service.session.state)
 
     def test_target_mismatch_never_injects_and_requires_one_recovery_read(self) -> None:
         service, platform, _, _, _, recovery = self.make_service()
@@ -98,7 +98,7 @@ class PipelineTests(unittest.TestCase):
         platform.target = TargetSnapshot("app", "window-b", "field")
         service.release()
         self.assertEqual([], platform.inserted)
-        self.assertEqual(SessionState.RECOVERY, service.session.state)
+        self.assertEqual(SessionState.IDLE, service.session.state)
         self.assertEqual("Polished words", recovery.take())
         self.assertIsNone(recovery.take())
 
@@ -113,7 +113,36 @@ class PipelineTests(unittest.TestCase):
                 service.press()
                 service.release()
                 self.assertEqual([], platform.inserted)
-                self.assertEqual(SessionState.FAILED, service.session.state)
+                self.assertEqual(SessionState.IDLE, service.session.state)
+
+    def test_terminal_outcomes_allow_a_following_dictation(self) -> None:
+        service, platform, _, asr, cleanup, _ = self.make_service()
+        service.press()
+        service.release()
+        service.press()
+        service.release()
+        self.assertEqual(2, len(platform.inserted))
+        self.assertEqual(2, len(asr.calls))
+        self.assertEqual(2, len(cleanup.calls))
+        self.assertEqual(SessionState.IDLE, service.session.state)
+
+    def test_release_without_a_pressed_trigger_does_nothing(self) -> None:
+        service, platform, recorder, asr, cleanup, _ = self.make_service()
+        service.release()
+        self.assertFalse(recorder.started)
+        self.assertEqual([], asr.calls)
+        self.assertEqual([], cleanup.calls)
+        self.assertEqual([], platform.inserted)
+
+    def test_second_press_during_active_dictation_is_rejected_without_duplicate_recording(self) -> None:
+        platform, recorder, asr, cleanup, recovery = Platform(), Recorder(), ASR(), Cleanup(), RecoveryStore()
+        events: list[str] = []
+        service = DictationService(Preferences(), platform, recorder, asr, cleanup, recovery=recovery, status=events.append)
+        service.press()
+        service.press()
+        service.release()
+        self.assertEqual(["dictation-busy", "inserted"], events)
+        self.assertEqual(1, len(asr.calls))
 
 
 if __name__ == "__main__":

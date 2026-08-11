@@ -49,6 +49,13 @@ class DictationSession:
         self.state = SessionState.FAILED
         self.clear_content()
 
+    def reset(self) -> None:
+        """Clear a completed session so the next trigger can begin a new one."""
+        if self.state not in _TERMINAL and self.state is not SessionState.IDLE:
+            raise ValueError(f"cannot reset an active session from {self.state}")
+        self.clear_content()
+        self.state = SessionState.IDLE
+
     def clear_content(self) -> None:
         self.audio = self.transcript = self.context = self.prompt = self.output = None
 

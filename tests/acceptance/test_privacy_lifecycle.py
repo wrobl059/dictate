@@ -66,7 +66,7 @@ class PrivacyLifecycleAcceptanceTests(unittest.TestCase):
             service = DictationService(Preferences(), platform, recorder, asr, cleanup, recovery=RecoveryStore())
             service.press(); service.release()
             self.assertEqual([markers[4]], writes)
-            self.assertEqual(SessionState.INSERTED, service.session.state)
+            self.assertEqual(SessionState.IDLE, service.session.state)
             self.assertTrue(all(getattr(service.session, field) is None for field in ("audio", "transcript", "context", "prompt", "output")))
             persisted = "".join(path.read_text(encoding="utf-8", errors="ignore") for path in Path(directory).rglob("*") if path.is_file())
             self.assertTrue(all(marker not in persisted for marker in markers))
@@ -84,7 +84,7 @@ class PrivacyLifecycleAcceptanceTests(unittest.TestCase):
         self.assertTrue(recorder.stopped)
         self.assertTrue(recorder.discarded)
         self.assertEqual(b"", recorder.audio)
-        self.assertEqual(SessionState.FAILED, service.session.state)
+        self.assertEqual(SessionState.IDLE, service.session.state)
 
     def test_logging_rejects_content_in_event_and_error(self) -> None:
         logger = logging.getLogger("dictate-privacy-lifecycle")

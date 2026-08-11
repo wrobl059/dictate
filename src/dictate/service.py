@@ -168,8 +168,8 @@ class DictationService:
                     self._target = None
                     if self.session.state not in (SessionState.IDLE, SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
                         self.session.fail()
-                    else:
-                        self.session.clear_content()
+                    if self.session.state is not SessionState.IDLE:
+                        self.session.reset()
 
     def press(self) -> None:
         if self.session.state is not SessionState.IDLE:
@@ -211,6 +211,8 @@ class DictationService:
             self.session.transcript = transcript
             self.session.transition(SessionState.CLEANING)
             output = self.cleanup.clean(transcript, self.preferences.style, terms=self._terms, context=self.session.context)
+            if not isinstance(output, str) or not output.strip():
+                raise ValueError("local cleanup returned no usable output")
             self.session.output = output
             self.session.transition(SessionState.VALIDATING_TARGET)
             target = self._target
@@ -230,6 +232,8 @@ class DictationService:
             self._timing_reporter(PlacementTiming(duration_ms, outcome))
             self._target = None
             self._terms = ()
+            if self.session.state in (SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
+                self.session.reset()
 
     def _fail(self, event: str) -> None:
         try:
@@ -238,8 +242,8 @@ class DictationService:
             pass
         if self.session.state not in (SessionState.IDLE, SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
             self.session.fail()
-        else:
-            self.session.clear_content()
+        if self.session.state is not SessionState.IDLE:
+            self.session.reset()
         self._target = None
         self._terms = ()
         self.status(event)

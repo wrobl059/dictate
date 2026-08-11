@@ -4,6 +4,17 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
+from pathlib import Path
+
+from dictate.asr import WhisperServer
+from dictate.audio import Recorder, list_input_devices
+from dictate.cleanup import OllamaClient
+from dictate.config import Preferences, load_preferences
+from dictate.dictionary import global_dictionary_path, terms_for_paths
+from dictate.platform import current_platform
+from dictate.readiness import LocalReadiness
+from dictate.service import DictationService, check_readiness
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -17,8 +28,72 @@ def build_parser() -> argparse.ArgumentParser:
     ):
         command = commands.add_parser(name, help=help_text)
         if name == "serve":
-            command.add_argument("--recover", action="store_true", help="print and clear this process's pending recovery result")
+            command.add_argument("--recover", action="store_true", help="print and clear an injected in-process recovery result (test-only)")
     return parser
+
+
+def preferences_path(home: Path | None = None) -> Path:
+    return (home or Path.home()) / ".config" / "dictate" / "preferences.toml"
+
+
+def _report_readiness(command: str, preferences: Preferences) -> int:
+    try:
+        platform = current_platform()
+        result = check_readiness(preferences, LocalReadiness(platform))
+    except Exception:
+        print(f"{command}: configuration or local capability check failed", file=sys.stderr)
+        return 1
+    for limitation in result.limitations:
+        print(f"{command}: limitation: {limitation}", file=sys.stderr)
+    if not result.ready:
+        for failure in result.required_failures:
+            print(f"{command}: not ready: {failure}", file=sys.stderr)
+        return 1
+    print(f"{command}: ready")
+    return 0
+
+
+def _serve(preferences: Preferences) -> int:
+    try:
+        platform = current_platform()
+        result = check_readiness(preferences, LocalReadiness(platform))
+    except Exception:
+        print("serve: configuration or local capability check failed", file=sys.stderr)
+        return 1
+    if not result.ready:
+        for failure in result.required_failures:
+            print(f"serve: not ready: {failure}", file=sys.stderr)
+        return 1
+    for limitation in result.limitations:
+        print(f"serve: limitation: {limitation}", file=sys.stderr)
+    try:
+        global_terms = terms_for_paths(global_dictionary_path())
+    except (OSError, ValueError):
+        print("serve: invalid local dictionary", file=sys.stderr)
+        return 1
+    service = DictationService(
+        preferences,
+        platform,
+        Recorder(preferences.microphone),
+        WhisperServer(preferences.asr_endpoint),
+        OllamaClient(preferences.ollama_endpoint, preferences.ollama_model),
+        status=lambda event: print(f"serve: {event}", file=sys.stderr),
+        terms_for_target=lambda _target: global_terms,
+    )
+    try:
+        service.start()
+    except Exception:
+        service.stop()
+        print("serve: could not start local dictation service", file=sys.stderr)
+        return 1
+    print("serve: ready", file=sys.stderr)
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        service.stop()
 
 
 def main(argv: list[str] | None = None, *, recovery: object | None = None) -> int:
@@ -32,6 +107,24 @@ def main(argv: list[str] | None = None, *, recovery: object | None = None) -> in
             return 1
         print(result)
         return 0
-    print(f"{args.command}: not available until its implementation phase", file=sys.stderr)
-    return 0
+    try:
+        preferences = load_preferences(preferences_path())
+    except (OSError, ValueError):
+        print(f"{args.command}: invalid local preferences", file=sys.stderr)
+        return 1
+    if args.command == "devices":
+        try:
+            devices = list_input_devices()
+        except Exception:
+            print("devices: could not inspect local audio inputs", file=sys.stderr)
+            return 1
+        if not devices:
+            print("devices: no local audio inputs are available", file=sys.stderr)
+            return 1
+        for device in devices:
+            print(f"{device.identifier}\t{device.name}")
+        return 0
+    if args.command in ("setup", "doctor"):
+        return _report_readiness(args.command, preferences)
+    return _serve(preferences)
 

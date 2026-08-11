@@ -32,6 +32,13 @@ class ConfigDictionarySessionTests(unittest.TestCase):
             global_terms = load_dictionary(path)
         self.assertEqual(("Dictate", "OLLAMA"), merge_dictionaries(global_terms, {"ollama": "OLLAMA"}))
 
+    def test_duplicate_dictionary_term_reports_local_line_numbers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "dictionary.txt"
+            path.write_text("Ollama\nOLLAMA\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "lines 1 and 2"):
+                load_dictionary(path)
+
     def test_every_terminal_state_clears_content(self) -> None:
         for terminal in (SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
             with self.subTest(terminal=terminal):

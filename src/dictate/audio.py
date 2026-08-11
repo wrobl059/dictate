@@ -21,6 +21,7 @@ class Recorder:
 		self._stream_factory = stream_factory or self._sounddevice_stream
 		self._stream: _InputStream | None = None
 		self._frames = bytearray()
+		self._capture_error: RuntimeError | None = None
 
 	@staticmethod
 	def _sounddevice_stream(**kwargs: object) -> _InputStream:
@@ -32,18 +33,24 @@ class Recorder:
 		if self._stream is not None:
 			raise RuntimeError("recording is already active")
 		self._frames.clear()
-		self._stream = self._stream_factory(
-			samplerate=16_000,
-			channels=1,
-			dtype="int16",
-			device=self._device,
-			callback=self._on_audio,
-		)
-		self._stream.start()
+		self._capture_error = None
+		try:
+			self._stream = self._stream_factory(
+				samplerate=16_000,
+				channels=1,
+				dtype="int16",
+				device=self._device,
+				callback=self._on_audio,
+			)
+			self._stream.start()
+		except Exception:
+			self.discard()
+			raise
 
 	def _on_audio(self, indata: object, frames: int, time_info: object, status: object) -> None:
 		if status:
-			raise RuntimeError("audio capture reported a device status")
+			self._capture_error = RuntimeError("audio capture reported a device status")
+			return
 		self._frames.extend(bytes(indata))
 
 	def stop(self) -> bytes:
@@ -54,12 +61,27 @@ class Recorder:
 			stream.stop()
 		finally:
 			stream.close()
+		if self._capture_error is not None:
+			self._frames.clear()
+			error, self._capture_error = self._capture_error, None
+			raise error
 		audio = bytes(self._frames)
 		self._frames.clear()
 		return audio
 
 	def discard(self) -> None:
+		stream, self._stream = self._stream, None
+		if stream is not None:
+			try:
+				stream.stop()
+			except Exception:
+				pass
+			try:
+				stream.close()
+			except Exception:
+				pass
 		self._frames.clear()
+		self._capture_error = None
 
 
 @dataclass(frozen=True)

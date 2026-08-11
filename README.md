@@ -36,16 +36,14 @@ dictate setup
 dictate devices
 dictate doctor
 dictate serve
-dictate serve --recover
 ```
 
 - `setup` verifies the required local components and reports ready only when they are available.
 - `devices` lists local input identifiers and display names without recording.
 - `doctor` prints content-free readiness failures and platform-specific remediation.
-- `serve` runs the local push-to-talk pipeline.
-- `serve --recover` prints one pending in-process recovery result and immediately clears it. It does not use the clipboard and the result cannot survive process exit.
+- `serve` starts the local push-to-talk pipeline only after required local readiness checks pass.
 
-The command parser exposes this interface. The repository's acceptance tests exercise the service through deterministic local boundaries; connect a platform-specific verified-target adapter and local runtime boundaries before relying on ordinary `serve` operation on a desktop.
+The repository's acceptance tests exercise the service through deterministic local boundaries. Current native adapters intentionally fail closed for automatic placement until they can verify the original text target, so `setup`, `doctor`, and `serve` correctly report placement as not ready on such a host. A pending unsafe-placement result remains in process memory only; an interactive recovery UX is not yet available.
 
 ## Blessed defaults
 
@@ -71,7 +69,7 @@ Both ASR and Ollama endpoints are validated as loopback-only before content can 
 
 Destination context is optional. If the platform cannot provide its bounded target-local context, diagnostics report the limitation and dictation proceeds without context. Screen capture, OCR, and collection from unrelated applications are not used.
 
-Text is injected only after revalidating the original application, window, and text target captured at key-down. If that check fails, no destination receives text; use the explicit local recovery command instead.
+Text is injected only after revalidating the original application, window, and text target captured at key-down. If that check fails, no destination receives text; the result is retained only in process memory pending an explicit recovery interaction.
 
 ## Platform behavior and validation
 

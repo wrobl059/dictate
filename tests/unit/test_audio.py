@@ -43,6 +43,55 @@ class AudioTests(unittest.TestCase):
         self.assertTrue(stream.stopped)
         self.assertTrue(stream.closed)
 
+    def test_discard_closes_live_stream_and_clears_audio(self) -> None:
+        streams: list[Stream] = []
+
+        def factory(**kwargs: object) -> Stream:
+            stream = Stream(**kwargs)
+            streams.append(stream)
+            return stream
+
+        recorder = Recorder(stream_factory=factory)
+        recorder.start()
+        stream = streams[0]
+        stream.kwargs["callback"](b"partial", 7, None, None)
+        recorder.discard()
+        self.assertTrue(stream.stopped)
+        self.assertTrue(stream.closed)
+        with self.assertRaises(RuntimeError):
+            recorder.stop()
+
+    def test_device_status_discards_partial_audio_and_fails_on_stop(self) -> None:
+        streams: list[Stream] = []
+
+        def factory(**kwargs: object) -> Stream:
+            stream = Stream(**kwargs)
+            streams.append(stream)
+            return stream
+
+        recorder = Recorder(stream_factory=factory)
+        recorder.start()
+        stream = streams[0]
+        stream.kwargs["callback"](b"partial", 7, None, None)
+        stream.kwargs["callback"](b"", 0, None, "device-disconnected")
+        with self.assertRaisesRegex(RuntimeError, "device status"):
+            recorder.stop()
+        self.assertTrue(stream.closed)
+
+    def test_selected_device_is_opened_at_session_start_and_open_failure_leaves_no_recording(self) -> None:
+        attempts: list[object] = []
+
+        def unavailable(**kwargs: object) -> Stream:
+            attempts.append(kwargs["device"])
+            raise RuntimeError("selected device unavailable")
+
+        recorder = Recorder("42", stream_factory=unavailable)
+        with self.assertRaisesRegex(RuntimeError, "selected device unavailable"):
+            recorder.start()
+        self.assertEqual(["42"], attempts)
+        with self.assertRaisesRegex(RuntimeError, "not active"):
+            recorder.stop()
+
 
 if __name__ == "__main__":
     unittest.main()

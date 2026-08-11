@@ -21,13 +21,18 @@ def load_dictionary(path: Path) -> dict[str, str]:
     if not path.exists():
         return {}
     entries: dict[str, str] = {}
+    line_numbers: dict[str, int] = {}
     for line_number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         term = raw.strip()
         if not term:
             continue
         if "\x00" in term:
             raise ValueError(f"dictionary contains an invalid term on line {line_number}")
-        entries[term.casefold()] = term
+        normalized = term.casefold()
+        if normalized in entries:
+            raise ValueError(f"dictionary contains duplicate terms on lines {line_numbers[normalized]} and {line_number}")
+        entries[normalized] = term
+        line_numbers[normalized] = line_number
     return entries
 
 
