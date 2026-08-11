@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from dictate.platform.base import TargetSnapshot
 from dictate.platform.linux import LinuxAdapter
-from dictate.platform.macos import MacOSAdapter, _PyObjCAccessibility
+from dictate.platform.macos import MacOSAdapter, _PyObjCAccessibility, write_unicode_keyboard_text
 from dictate.platform.windows import WindowsAdapter
 
 
@@ -138,48 +138,73 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertFalse(adapter.insert_text(target, "must-not-be-inserted"))
         self.assertEqual([], written)
 
-    def test_macos_uses_settled_keyboard_input_only_for_slack_and_terminals(self) -> None:
-        for title in ("Slack", "Terminal", "iTerm2"):
-            with self.subTest(application=title):
-                accessibility = Accessibility()
-                accessibility.app_title = title
-                written: list[str] = []
-                delays: list[float] = []
-                adapter = MacOSAdapter(
-                    lambda *_args: Hotkey(),
-                    microphone_authorized=lambda: True,
-                    accessibility_factory=lambda: accessibility,
-                    text_writer=written.append,
-                    insertion_settle_delay=delays.append,
-                )
-                target = adapter.snapshot_target()
-                assert target is not None
-
-                self.assertTrue(adapter.insert_text(target, "hosted control text"))
-                self.assertEqual([0.05], delays)
-                self.assertEqual(["hosted control text"], written)
-                self.assertEqual([], accessibility.replacements)
-
-    def test_macos_keyboard_host_rechecks_target_after_settling(self) -> None:
+    def test_macos_uses_keyboard_input_only_for_slack(self) -> None:
         accessibility = Accessibility()
         accessibility.app_title = "Slack"
         written: list[str] = []
-
-        def settle(_seconds: float) -> None:
-            accessibility.element = object()
-
         adapter = MacOSAdapter(
             lambda *_args: Hotkey(),
             microphone_authorized=lambda: True,
             accessibility_factory=lambda: accessibility,
             text_writer=written.append,
-            insertion_settle_delay=settle,
+        )
+        target = adapter.snapshot_target()
+        assert target is not None
+
+        self.assertTrue(adapter.insert_text(target, "slack text"))
+        self.assertEqual(["slack text"], written)
+        self.assertEqual([], accessibility.replacements)
+
+        accessibility.element = object()
+        self.assertFalse(adapter.insert_text(target, "must-not-be-inserted"))
+        self.assertEqual(["slack text"], written)
+
+    def test_macos_slack_keyboard_writer_failure_is_fail_closed(self) -> None:
+        accessibility = Accessibility()
+        accessibility.app_title = "Slack"
+        adapter = MacOSAdapter(
+            lambda *_args: Hotkey(),
+            microphone_authorized=lambda: True,
+            accessibility_factory=lambda: accessibility,
+            text_writer=lambda _text: (_ for _ in ()).throw(RuntimeError()),
         )
         target = adapter.snapshot_target()
         assert target is not None
 
         self.assertFalse(adapter.insert_text(target, "must-not-be-inserted"))
-        self.assertEqual([], written)
+
+    def test_quartz_unicode_writer_posts_a_utf16_key_pair_without_clipboard(self) -> None:
+        events: list[tuple[int, bool, object]] = []
+        setters: list[tuple[object, int, str]] = []
+        posted: list[tuple[int, object]] = []
+
+        def event_factory(_source: object, key_code: int, down: bool) -> object:
+            event = object()
+            events.append((key_code, down, event))
+            return event
+
+        write_unicode_keyboard_text(
+            "A😀",
+            event_factory=event_factory,
+            unicode_setter=lambda event, length, text: setters.append((event, length, text)),
+            event_poster=lambda tap, event: posted.append((tap, event)),
+            event_tap=7,
+        )
+
+        self.assertEqual([(0, True), (0, False)], [(key_code, down) for key_code, down, _event in events])
+        self.assertEqual([(events[0][2], 3, "A😀"), (events[1][2], 3, "A😀")], setters)
+        self.assertEqual([(7, events[0][2]), (7, events[1][2])], posted)
+
+    def test_quartz_unicode_writer_ignores_empty_text(self) -> None:
+        calls: list[object] = []
+        write_unicode_keyboard_text(
+            "",
+            event_factory=lambda *_args: calls.append(object()),
+            unicode_setter=lambda *_args: calls.append(object()),
+            event_poster=lambda *_args: calls.append(object()),
+            event_tap=7,
+        )
+        self.assertEqual([], calls)
 
     def test_pyobjc_bridge_uses_stable_attribute_keys_when_constants_are_not_exported(self) -> None:
         module = ModuleType("ApplicationServices")

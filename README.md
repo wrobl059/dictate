@@ -52,10 +52,12 @@ dictate serve
   Microphone access through the native authorization API without opening, sampling, or retaining audio.
 - `serve` starts the local push-to-talk pipeline only after required local readiness checks pass.
 
-The repository's acceptance tests exercise the service through deterministic local boundaries. macOS uses
-Accessibility only when it can capture and revalidate the original application, window, and editable text target;
-unsupported targets or denied permission remain fail-closed. A pending unsafe-placement result remains in process
-memory only; an interactive recovery UX is not yet available.
+The repository's acceptance tests exercise the service through deterministic local boundaries. On macOS, Dictate
+captures and revalidates the original application, window, and editable text target before placement. Verified
+browser address bars and Gmail-style editable recipient fields use native Accessibility replacement. Slack uses
+direct Quartz Unicode key events after the same verification because its Accessibility setter may acknowledge a
+write without displaying it. Terminal applications are currently unsupported and fail closed. A pending
+unsafe-placement result remains in process memory only; an interactive recovery UX is not yet available.
 
 ## Blessed defaults
 
@@ -88,7 +90,7 @@ Text is injected only after revalidating the original application, window, and t
 
 ## Platform behavior and validation
 
-The cross-platform acceptance contract and the current content-free evidence are in [`specs/001-local-dictation/platform-acceptance-matrix.md`](specs/001-local-dictation/platform-acceptance-matrix.md). The generic key-monitoring path is shared. macOS uses native Accessibility APIs for verified placement; Windows and Linux remain fail-closed until their platform has a verified original-target implementation.
+The cross-platform acceptance contract and the current content-free evidence are in [`specs/001-local-dictation/platform-acceptance-matrix.md`](specs/001-local-dictation/platform-acceptance-matrix.md). The generic key-monitoring path is shared. macOS uses verified native Accessibility placement for standard editable controls and verified Quartz Unicode input for Slack; Terminal is intentionally unsupported. Windows and Linux remain fail-closed until their platform has a verified original-target implementation.
 
 The warmed-model latency acceptance target is visible placement within five seconds of release for at least 90% of successful short dictations. The timing report carries only duration and outcome metadata.
 

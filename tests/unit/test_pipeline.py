@@ -107,6 +107,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual("Polished words ", recovery.take())
         self.assertIsNone(recovery.take())
 
+
     def test_asr_or_cleanup_failure_never_inserts(self) -> None:
         for failure in ("asr", "cleanup"):
             with self.subTest(failure=failure):

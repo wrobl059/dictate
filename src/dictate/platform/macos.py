@@ -6,17 +6,14 @@ import threading
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from time import sleep
 from typing import Protocol
 
 from dictate.platform.base import AcquisitionResult, Capability, PlatformAdapter, TargetSnapshot
-from dictate.platform.generic import PynputHotkey, write_text
+from dictate.platform.generic import PynputHotkey
 
 _MICROPHONE_REMEDIATION = "grant Microphone access to the app running Dictate in System Settings > Privacy & Security > Microphone"
 _ACCESSIBILITY_REMEDIATION = "grant Accessibility permission to the app running Dictate in System Settings > Privacy & Security > Accessibility"
-_KEYBOARD_INPUT_APPLICATION_MARKERS = (
-    "slack", "terminal", "iterm",
-)
+_SLACK_APPLICATION_TITLE = "slack"
 
 
 class _AccessibilityBridge(Protocol):
@@ -28,6 +25,38 @@ class _AccessibilityBridge(Protocol):
     def editable(self, element: object) -> bool: ...
     def same(self, first: object, second: object) -> bool: ...
     def replace_selected_text(self, element: object, text: str) -> bool: ...
+
+
+def write_unicode_keyboard_text(
+    text: str,
+    *,
+    event_factory: Callable[[object, int, bool], object] | None = None,
+    unicode_setter: Callable[[object, int, str], None] | None = None,
+    event_poster: Callable[[int, object], None] | None = None,
+    event_tap: int | None = None,
+) -> None:
+    """Post a direct Unicode key-down/key-up pair without using the clipboard."""
+    if not text:
+        return
+    if event_factory is None or unicode_setter is None or event_poster is None:
+        from Quartz import (  # type: ignore[import-not-found]
+            CGEventCreateKeyboardEvent,
+            CGEventKeyboardSetUnicodeString,
+            CGEventPost,
+        )
+        event_factory = event_factory or CGEventCreateKeyboardEvent
+        unicode_setter = unicode_setter or CGEventKeyboardSetUnicodeString
+        event_poster = event_poster or CGEventPost
+    utf16_length = len(text.encode("utf-16-le")) // 2
+    key_down, key_up = event_factory(None, 0, True), event_factory(None, 0, False)
+    unicode_setter(key_down, utf16_length, text)
+    unicode_setter(key_up, utf16_length, text)
+    if event_tap is None:
+        from Quartz import kCGHIDEventTap  # type: ignore[import-not-found]
+
+        event_tap = kCGHIDEventTap
+    event_poster(event_tap, key_down)
+    event_poster(event_tap, key_up)
 
 
 class _PyObjCAccessibility:
@@ -151,14 +180,12 @@ class MacOSAdapter(PlatformAdapter):
         *,
         microphone_authorized: Callable[[], bool] = _microphone_authorized,
         accessibility_factory: Callable[[], _AccessibilityBridge] = _PyObjCAccessibility,
-        text_writer: Callable[[str], None] = write_text,
-        insertion_settle_delay: Callable[[float], None] = sleep,
+        text_writer: Callable[[str], None] = write_unicode_keyboard_text,
     ) -> None:
         self._hotkey_factory = hotkey_factory
         self._microphone_authorized = microphone_authorized
         self._accessibility_factory = accessibility_factory
         self._text_writer = text_writer
-        self._insertion_settle_delay = insertion_settle_delay
         self._accessibility: _AccessibilityBridge | None = None
         self._accessibility_unavailable = False
         self._targets: dict[str, _NativeTarget] = {}
@@ -230,7 +257,7 @@ class MacOSAdapter(PlatformAdapter):
             if focused is None:
                 return False
             application, window, element = focused
-            return (
+            matches = (
                 bridge.application_id(application) == target.application_id
                 and bridge.window_id(window) == target.window_id
                 and bridge.editable(element)
@@ -238,6 +265,7 @@ class MacOSAdapter(PlatformAdapter):
                 and bridge.same(window, native.window)
                 and bridge.same(element, native.element)
             )
+            return matches
         except Exception:
             return False
 
@@ -249,26 +277,19 @@ class MacOSAdapter(PlatformAdapter):
             return False
         try:
             if native.keyboard_input:
-                return self._write_after_trigger_release(target, text)
+                self._text_writer(text)
+                return True
             if bridge.replace_selected_text(native.element, text):
                 return True
             return False
         except Exception:
             return False
 
+
     @staticmethod
     def _requires_keyboard_input(application_title: str | None) -> bool:
-        normalized = application_title.casefold() if application_title is not None else ""
-        return any(marker in normalized for marker in _KEYBOARD_INPUT_APPLICATION_MARKERS)
+        return application_title is not None and application_title.casefold() == _SLACK_APPLICATION_TITLE
 
-    def _write_after_trigger_release(self, target: TargetSnapshot, text: str) -> bool:
-        # Wait for macOS to complete delivery of the physical Option-key
-        # release before injecting text, then verify the original target again.
-        self._insertion_settle_delay(0.05)
-        if not self.target_matches(target):
-            return False
-        self._text_writer(text)
-        return True
 
     def release_target(self, target: TargetSnapshot) -> None:
         self._targets.pop(target.text_target_id, None)
