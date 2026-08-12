@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Sequence
 from urllib.parse import urljoin
+from urllib.parse import urlparse
 
 from dictate.privacy import validate_loopback_url
 
@@ -20,6 +23,60 @@ _PROFILES = {
 
 class CleanupError(RuntimeError):
 	"""A content-free local cleanup failure."""
+
+
+class OllamaServer:
+	"""Own an Ollama process launched for one combined Dictate invocation."""
+
+	def __init__(
+		self,
+		endpoint: str,
+		command: Sequence[str] = ("ollama", "serve"),
+		*,
+		popen: Callable[..., subprocess.Popen[bytes]] = subprocess.Popen,
+	) -> None:
+		validate_loopback_url(endpoint)
+		self.endpoint = endpoint
+		self._command = tuple(command)
+		self._popen = popen
+		self._process: subprocess.Popen[bytes] | None = None
+
+	def start(self) -> None:
+		if self._process is not None:
+			return
+		try:
+			endpoint = urlparse(self.endpoint)
+			environment = os.environ.copy()
+			environment["OLLAMA_HOST"] = f"{endpoint.hostname}:{endpoint.port or 11434}"
+			self._process = self._popen(self._command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=environment)
+		except OSError as error:
+			raise CleanupError("local Ollama runtime could not start") from error
+
+	def stop(self) -> None:
+		process, self._process = self._process, None
+		if process is None or process.poll() is not None:
+			return
+		try:
+			process.terminate()
+			wait = getattr(process, "wait", None)
+			if wait is not None:
+				wait(timeout=3)
+		except subprocess.TimeoutExpired:
+			kill = getattr(process, "kill", None)
+			if kill is None:
+				return
+			kill()
+			try:
+				wait = getattr(process, "wait", None)
+				if wait is not None:
+					wait(timeout=3)
+			except subprocess.TimeoutExpired:
+				pass
+		except OSError:
+			pass
+
+	def running(self) -> bool:
+		return self._process is not None and self._process.poll() is None
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):

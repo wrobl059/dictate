@@ -84,9 +84,27 @@ class WhisperServer:
 			raise ASRError("local ASR runtime could not start") from error
 
 	def stop(self) -> None:
-		if self._process is not None:
-			self._process.terminate()
-			self._process = None
+		process, self._process = self._process, None
+		if process is None or process.poll() is not None:
+			return
+		try:
+			process.terminate()
+			wait = getattr(process, "wait", None)
+			if wait is not None:
+				wait(timeout=3)
+		except subprocess.TimeoutExpired:
+			kill = getattr(process, "kill", None)
+			if kill is None:
+				return
+			kill()
+			try:
+				wait = getattr(process, "wait", None)
+				if wait is not None:
+					wait(timeout=3)
+			except subprocess.TimeoutExpired:
+				pass
+		except OSError:
+			pass
 
 	def ready(self) -> bool:
 		self._ensure_running()
@@ -124,4 +142,8 @@ class WhisperServer:
 	def _ensure_running(self) -> None:
 		if self._process is not None and self._process.poll() is not None:
 			raise ASRError("local ASR runtime stopped unexpectedly")
+
+	def running(self) -> bool:
+		"""Report the liveness of a process owned by this client, if any."""
+		return self._process is not None and self._process.poll() is None
 

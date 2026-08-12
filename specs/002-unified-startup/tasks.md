@@ -20,9 +20,9 @@
 
 **Purpose**: Establish deterministic test seams and retain the explicit-install boundary before lifecycle work begins.
 
-- [ ] T001 [P] Add no-argument non-install bootstrap regression coverage in `tests/unit/test_bootstrap.py`
-- [ ] T002 [P] Create fake clock, sleeper, process-handle, lock, dependency, readiness, service, and fixed-status-reporter fixtures for lifecycle tests in `tests/unit/test_startup.py`
-- [ ] T003 [P] Create managed local-process fake tests for Whisper and Ollama boundaries in `tests/unit/test_local_clients.py`
+- [X] T001 [P] Add no-argument non-install bootstrap regression coverage in `tests/unit/test_bootstrap.py`
+- [X] T002 [P] Create fake clock, sleeper, process-handle, lock, dependency, readiness, service, and fixed-status-reporter fixtures for lifecycle tests in `tests/unit/test_startup.py`
+- [X] T003 [P] Create managed local-process fake tests for Whisper and Ollama boundaries in `tests/unit/test_local_clients.py`
 
 **Checkpoint**: The test suite has deterministic seams for process lifecycle, readiness polling, and lock ownership without requiring real local runtimes.
 
@@ -34,14 +34,14 @@
 
 **⚠️ CRITICAL**: Complete this phase before starting user-story integration work.
 
-- [ ] T004 Add failing managed-process lifecycle cases—start, liveness, bounded terminate/wait/kill, idempotent stop, and no external-process ownership—to `tests/unit/test_local_clients.py`
-- [ ] T005 Refine the managed Whisper process boundary to use verified preferences and bounded idempotent cleanup in `src/dictate/asr.py`
-- [ ] T006 Add a separate injected Ollama managed-process boundary, local launch command, liveness, and bounded idempotent cleanup in `src/dictate/cleanup.py`
-- [ ] T007 Add failing runtime-lock acquisition, owner-aware release, and contention-no-management cases in `tests/unit/test_startup.py`
-- [ ] T008 Implement transient runtime lock and invocation/dependency state records with no user-content fields in `src/dictate/startup.py`
-- [ ] T009 Add failing loopback-before-launch, missing-artifact/executable, fixed-remediation, and no-installer-acquisition cases in `tests/unit/test_startup.py`
-- [ ] T010 Implement fixed content-free status reporting plus pre-launch endpoint and installed-artifact validation in `src/dictate/startup.py`
-- [ ] T011 Extend unsafe endpoint and readiness privacy regressions for the supervisor boundary in `tests/unit/test_readiness_privacy.py`
+- [X] T004 Add failing managed-process lifecycle cases—start, liveness, bounded terminate/wait/kill, idempotent stop, and no external-process ownership—to `tests/unit/test_local_clients.py`
+- [X] T005 Refine the managed Whisper process boundary to use verified preferences and bounded idempotent cleanup in `src/dictate/asr.py`
+- [X] T006 Add a separate injected Ollama managed-process boundary, local launch command, liveness, and bounded idempotent cleanup in `src/dictate/cleanup.py`
+- [X] T007 Add failing runtime-lock acquisition, owner-aware release, and contention-no-management cases in `tests/unit/test_startup.py`
+- [X] T008 Implement transient runtime lock and invocation/dependency state records with no user-content fields in `src/dictate/startup.py`
+- [X] T009 Add failing loopback-before-launch, missing-artifact/executable, fixed-remediation, and no-installer-acquisition cases in `tests/unit/test_startup.py`
+- [X] T010 Implement fixed content-free status reporting plus pre-launch endpoint and installed-artifact validation in `src/dictate/startup.py`
+- [X] T011 Extend unsafe endpoint and readiness privacy regressions for the supervisor boundary in `tests/unit/test_readiness_privacy.py`
 
 **Checkpoint**: Process ownership, local-only validation, lock isolation, explicit-install-only behavior, and content-free status reporting are reusable and covered before application startup is wired.
 
@@ -55,18 +55,18 @@
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Add failing supervisor tests for probe-before-launch, launch-only-unavailable, ownership marking, shared 30-second polling deadline, full readiness gating, and ready-once output in `tests/unit/test_startup.py`
-- [ ] T013 [P] [US1] Add failing no-argument dispatch and `serve` compatibility-alias tests while preserving setup, doctor, and devices branches in `tests/unit/test_cli.py`
-- [ ] T014 [P] [US1] Add fake-loopback combined startup integration coverage for initially stopped and pre-existing dependencies in `tests/integration/test_unified_startup.py`
-- [ ] T015 [P] [US1] Add offline one-command startup and deterministic insertion acceptance coverage with captured content-free terminal output in `tests/acceptance/test_unified_startup.py`
+- [X] T012 [P] [US1] Add failing supervisor tests for probe-before-launch, launch-only-unavailable, ownership marking, shared 30-second polling deadline, full readiness gating, and ready-once output in `tests/unit/test_startup.py`
+- [X] T013 [P] [US1] Add failing no-argument dispatch and `serve` compatibility-alias tests while preserving setup, doctor, and devices branches in `tests/unit/test_cli.py`
+- [X] T014 [P] [US1] Add fake-loopback combined startup integration coverage for initially stopped and pre-existing dependencies in `tests/integration/test_unified_startup.py`
+- [X] T015 [P] [US1] Add offline one-command startup and deterministic insertion acceptance coverage with captured content-free terminal output in `tests/acceptance/test_unified_startup.py`
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Implement combined invocation orchestration—initial probes, start-only-unavailable dependencies, ownership recording, shared deadline polling, and `DictationService` creation only after `check_readiness()` passes—in `src/dictate/startup.py`
-- [ ] T017 [US1] Integrate service construction so dependency supervision remains outside `DictationService` while its existing push-to-talk pipeline remains unchanged in `src/dictate/startup.py`
-- [ ] T018 [US1] Make no-subcommand `dictate` dispatch to the combined invocation and route `dictate serve` through the identical compatibility path in `src/dictate/cli.py`
-- [ ] T019 [US1] Preserve `serve --recover` and all existing explicit setup/diagnostic command semantics after parser changes in `src/dictate/cli.py`
-- [ ] T020 [US1] Extend verified local-component command integration coverage if the finalized process boundary needs retained runtime metadata in `tests/integration/test_installer_local_components.py`
+- [X] T016 [US1] Implement combined invocation orchestration—initial probes, start-only-unavailable dependencies, ownership recording, shared deadline polling, and `DictationService` creation only after `check_readiness()` passes—in `src/dictate/startup.py`
+- [X] T017 [US1] Integrate service construction so dependency supervision remains outside `DictationService` while its existing push-to-talk pipeline remains unchanged in `src/dictate/startup.py`
+- [X] T018 [US1] Make no-subcommand `dictate` dispatch to the combined invocation and route `dictate serve` through the identical compatibility path in `src/dictate/cli.py`
+- [X] T019 [US1] Preserve `serve --recover` and all existing explicit setup/diagnostic command semantics after parser changes in `src/dictate/cli.py`
+- [X] T020 [US1] Extend verified local-component command integration coverage if the finalized process boundary needs retained runtime metadata in `tests/integration/test_installer_local_components.py`
 
 **Checkpoint**: In an installed offline environment, bare `dictate` starts the required local services and normal Dictate workflow without manual server commands.
 
@@ -80,15 +80,15 @@
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] Add failing supervisor cases for launch failure, missing model/runtime, readiness timeout, permission/capability failure, unsafe endpoints, and no service start before complete readiness in `tests/unit/test_startup.py`
-- [ ] T022 [P] [US2] Add integration coverage for partial startup failure cleanup and loopback-only rejection in `tests/integration/test_unified_startup.py`
-- [ ] T023 [P] [US2] Add acceptance cases for missing prerequisite, denied capability, unsafe endpoint, offline socket blocking, and content sentinel exclusion from lifecycle output in `tests/acceptance/test_unified_startup.py`
+- [X] T021 [P] [US2] Add failing supervisor cases for launch failure, missing model/runtime, readiness timeout, permission/capability failure, unsafe endpoints, and no service start before complete readiness in `tests/unit/test_startup.py`
+- [X] T022 [P] [US2] Add integration coverage for partial startup failure cleanup and loopback-only rejection in `tests/integration/test_unified_startup.py`
+- [X] T023 [P] [US2] Add acceptance cases for missing prerequisite, denied capability, unsafe endpoint, offline socket blocking, and content sentinel exclusion from lifecycle output in `tests/acceptance/test_unified_startup.py`
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Add bounded readiness-timeout handling and fixed content-free remediation mapping for dependency, model, permission, trigger, and placement failures in `src/dictate/startup.py`
-- [ ] T025 [US2] Ensure all startup failure paths reject dictation, avoid installer/acquisition calls and exception-content output, and clean up only invocation-owned dependencies in `src/dictate/startup.py`
-- [ ] T026 [US2] Present the supervisor's safe readiness/failure outcomes without leaking exception text or user content in `src/dictate/cli.py`
+- [X] T024 [US2] Add bounded readiness-timeout handling and fixed content-free remediation mapping for dependency, model, permission, trigger, and placement failures in `src/dictate/startup.py`
+- [X] T025 [US2] Ensure all startup failure paths reject dictation, avoid installer/acquisition calls and exception-content output, and clean up only invocation-owned dependencies in `src/dictate/startup.py`
+- [X] T026 [US2] Present the supervisor's safe readiness/failure outcomes without leaking exception text or user content in `src/dictate/cli.py`
 
 **Checkpoint**: Each unavailable or unsafe prerequisite produces an explicit, privacy-safe non-ready state with no partial usable Dictate service.
 
@@ -102,16 +102,16 @@
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] Add failing supervisor tests for reverse-order ownership cleanup on interrupt, startup failure, and application-start failure, plus pre-existing dependency preservation in `tests/unit/test_startup.py`
-- [ ] T028 [P] [US3] Add failing lock-contention, lock-release, and owned-dependency-loss recovery tests in `tests/unit/test_startup.py`
-- [ ] T029 [P] [US3] Add integration tests for interruption cleanup and pre-existing service preservation in `tests/integration/test_unified_startup.py`
-- [ ] T030 [P] [US3] Add acceptance tests for interrupted startup, second invocation, runtime owned dependency loss, and content-free shutdown/recovery output in `tests/acceptance/test_unified_startup.py`
+- [X] T027 [P] [US3] Add failing supervisor tests for reverse-order ownership cleanup on interrupt, startup failure, and application-start failure, plus pre-existing dependency preservation in `tests/unit/test_startup.py`
+- [X] T028 [P] [US3] Add failing lock-contention, lock-release, and owned-dependency-loss recovery tests in `tests/unit/test_startup.py`
+- [X] T029 [P] [US3] Add integration tests for interruption cleanup and pre-existing service preservation in `tests/integration/test_unified_startup.py`
+- [X] T030 [P] [US3] Add acceptance tests for interrupted startup, second invocation, runtime owned dependency loss, and content-free shutdown/recovery output in `tests/acceptance/test_unified_startup.py`
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] Implement `finally`-based application-first and reverse-launch-order owned dependency cleanup with idempotent lock release in `src/dictate/startup.py`
-- [ ] T032 [US3] Monitor owned dependency liveness after ready, transition to fixed content-free recovery, stop accepting dictation, and trigger owned cleanup in `src/dictate/startup.py`
-- [ ] T033 [US3] Map terminal interruption and owned-dependency-loss outcomes to clean combined-invocation termination in `src/dictate/cli.py`
+- [X] T031 [US3] Implement `finally`-based application-first and reverse-launch-order owned dependency cleanup with idempotent lock release in `src/dictate/startup.py`
+- [X] T032 [US3] Monitor owned dependency liveness after ready, transition to fixed content-free recovery, stop accepting dictation, and trigger owned cleanup in `src/dictate/startup.py`
+- [X] T033 [US3] Map terminal interruption and owned-dependency-loss outcomes to clean combined-invocation termination in `src/dictate/cli.py`
 
 **Checkpoint**: Shutdown and failure never leave invocation-owned processes behind, never stop pre-existing processes, and never permit competing invocations to interfere.
 
@@ -121,10 +121,10 @@
 
 **Purpose**: Update user guidance, protect regressions, and verify the documented end-to-end behavior.
 
-- [ ] T034 [P] Replace obsolete manual Whisper/Ollama startup instructions and document bare `dictate`, `serve` compatibility, setup-only acquisition, local-only boundaries, and ownership semantics in `README.md`
-- [ ] T035 [P] Update the existing command contract to describe bare-command combined startup and retained `serve` compatibility in `specs/001-local-dictation/contracts/cli.md`
-- [ ] T036 Run the full unittest suite and resolve unified-startup regressions across `tests/`
-- [ ] T037 Execute every scenario in `specs/002-unified-startup/quickstart.md` and record any platform-specific limitations in `specs/002-unified-startup/quickstart.md`
+- [X] T034 [P] Replace obsolete manual Whisper/Ollama startup instructions and document bare `dictate`, `serve` compatibility, setup-only acquisition, local-only boundaries, and ownership semantics in `README.md`
+- [X] T035 [P] Update the existing command contract to describe bare-command combined startup and retained `serve` compatibility in `specs/001-local-dictation/contracts/cli.md`
+- [X] T036 Run the full unittest suite and resolve unified-startup regressions across `tests/`
+- [X] T037 Execute every scenario in `specs/002-unified-startup/quickstart.md` and record any platform-specific limitations in `specs/002-unified-startup/quickstart.md`
 
 ---
 
@@ -184,4 +184,3 @@ Task: "Add offline one-command acceptance coverage in tests/acceptance/test_unif
 - Existing `tests/integration/test_local_clients.py` remains regression coverage; `tests/unit/test_local_clients.py` is a new process-boundary unit suite.
 - Keep all runtime-lock metadata transient and free of user content.
 - Do not introduce a daemon attachment protocol, automatic dependency acquisition, cloud fallback, persistent user-content storage, or a GUI while implementing these tasks.
-

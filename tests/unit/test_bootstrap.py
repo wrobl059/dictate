@@ -20,7 +20,7 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(("-m", "pip", "install", "sounddevice==0.5.5"), calls[0][1:])
 
     def test_all_non_exact_install_commands_skip_dependency_repair(self) -> None:
-        for arguments in (["setup"], ["doctor"], ["devices"], ["serve"], ["setup", "--other"]):
+        for arguments in ([], ["setup"], ["doctor"], ["devices"], ["serve"], ["setup", "--other"]):
             with self.subTest(arguments=arguments):
                 with patch("dictate.bootstrap.repair_dependencies") as repair:
                     self.assertEqual(0, bootstrap.main(arguments, import_cli=lambda: lambda _arguments: 0))

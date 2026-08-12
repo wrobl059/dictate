@@ -16,11 +16,12 @@ from dictate.installer import InstallerCoordinator
 from dictate.platform import current_platform
 from dictate.readiness import LocalReadiness
 from dictate.service import DictationService, check_readiness
+from dictate.startup import CombinedStartup
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dictate", description="Local-only push-to-talk dictation")
-    commands = parser.add_subparsers(dest="command", required=True)
+    commands = parser.add_subparsers(dest="command")
     for name, help_text in (
         ("setup", "check required local setup"),
         ("serve", "start the local dictation service"),
@@ -79,46 +80,7 @@ def _install_dependencies(preferences: Preferences, path: Path) -> tuple[bool, P
 
 
 def _serve(preferences: Preferences) -> int:
-    try:
-        platform = current_platform()
-        result = check_readiness(preferences, LocalReadiness(platform))
-    except Exception:
-        print("serve: configuration or local capability check failed", file=sys.stderr)
-        return 1
-    if not result.ready:
-        for failure in result.required_failures:
-            print(f"serve: not ready: {failure}", file=sys.stderr)
-        return 1
-    for limitation in result.limitations:
-        print(f"serve: limitation: {limitation}", file=sys.stderr)
-    try:
-        global_terms = terms_for_paths(global_dictionary_path())
-    except (OSError, ValueError):
-        print("serve: invalid local dictionary", file=sys.stderr)
-        return 1
-    service = DictationService(
-        preferences,
-        platform,
-        Recorder(preferences.microphone),
-        WhisperServer(preferences.asr_endpoint),
-        OllamaClient(preferences.ollama_endpoint, preferences.ollama_model),
-        status=lambda event: print(f"serve: {event}", file=sys.stderr),
-        terms_for_target=lambda _target: global_terms,
-    )
-    try:
-        service.start()
-    except Exception:
-        service.stop()
-        print("serve: could not start local dictation service", file=sys.stderr)
-        return 1
-    print("serve: ready", file=sys.stderr)
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        return 0
-    finally:
-        service.stop()
+    return CombinedStartup(preferences, current_platform()).run()
 
 
 def main(argv: list[str] | None = None, *, recovery: object | None = None) -> int:
@@ -136,7 +98,7 @@ def main(argv: list[str] | None = None, *, recovery: object | None = None) -> in
     try:
         preferences = load_preferences(path)
     except (OSError, ValueError):
-        print(f"{args.command}: invalid local preferences", file=sys.stderr)
+        print(f"{args.command or 'dictate'}: invalid local preferences", file=sys.stderr)
         return 1
     if args.command == "devices":
         try:

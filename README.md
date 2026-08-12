@@ -33,65 +33,21 @@ components are retained. If a platform route, authorization, storage, network co
 verification fails, setup names only the affected component and remediation; it never reports ready after
 partial acquisition. Do not configure either inference endpoint to a non-loopback address.
 
-> **First-run note:** setup also checks the live ASR and Ollama HTTP endpoints. If it has installed the
-> local artifacts but reports that either service is not ready, start the services in the next section and
-> rerun `dictate setup --install-dependencies` (or `dictate doctor`) to confirm readiness.
+## Start Dictate
 
-## Start the local inference services
+After explicit setup, start the complete local pipeline with one command:
 
-`dictate serve` is a client of two local HTTP services; it does **not** start them for you. Start Ollama and
-whisper.cpp first, each in its own terminal, and leave both processes running while dictating. The defaults are
-loopback-only: Ollama listens on `127.0.0.1:11434`, and whisper.cpp listens on `127.0.0.1:8080`.
+```bash
+dictate
+```
 
-1. In the activated virtual environment, run `dictate setup --install-dependencies` once to acquire the
-   runtimes and models. If Ollama was just installed, open a second terminal and activate the same environment
-   if needed.
-2. Start the Ollama server:
+Dictate verifies loopback-only endpoints, reuses a compatible already-running local service, or starts the
+installed whisper.cpp and Ollama services itself. It reports ready only after both inference dependencies,
+microphone, trigger, and safe text placement are available. `dictate serve` remains a compatibility alias.
 
-   ```bash
-   ollama serve
-   ```
-
-   Keep this terminal open. On a new installation, ensure the configured cleanup model is available (the setup
-   command normally does this):
-
-   ```bash
-   ollama pull qwen3:4b-instruct-2507-q4_K_M
-   ```
-
-3. In another terminal, start whisper.cpp with the standard model location and Dictate's default endpoint:
-
-   ```bash
-   whisper-server --model "$HOME/.config/dictate/models/ggml-base.bin" --host 127.0.0.1 --port 8080
-   ```
-
-   This assumes `whisper-server` is on your `PATH`, as it is after the standard runtime installation. If setup
-   retained a custom executable or model location, use the verified absolute paths saved in
-   `~/.config/dictate/preferences.toml` instead:
-
-   ```bash
-   PREFERENCES="$HOME/.config/dictate/preferences.toml"
-   WHISPER_SERVER="$(awk -F"'" '/^whisper_server_executable = / { print $2 }' "$PREFERENCES")"
-   WHISPER_MODEL="$(awk -F"'" '/^whisper_model_path = / { print $2 }' "$PREFERENCES")"
-   "$WHISPER_SERVER" --model "$WHISPER_MODEL" --host 127.0.0.1 --port 8080
-   ```
-
-   If the standard model path does not exist or either fallback variable is empty, rerun
-   `dictate setup --install-dependencies`. To use non-default loopback ports, update the corresponding endpoint
-   in the preferences file and pass the same host and port to `whisper-server`.
-
-4. In a third terminal, verify the services and permissions, then start Dictate:
-
-   ```bash
-   dictate doctor
-   dictate serve
-   ```
-
-   `doctor` must report ready before `serve` can start. If it reports `local ASR`, confirm that the
-   `whisper-server` process is still running and its `/health` endpoint is available at
-   `http://127.0.0.1:8080/health`. If it reports `local Ollama model`, confirm `ollama serve` is still running
-   and rerun the `ollama pull` command above. Stop Dictate with `Ctrl-C`; then stop the two service processes
-   with `Ctrl-C` when they are no longer needed.
+Stop with `Ctrl-C`. Dictate stops only dependency processes that it started; pre-existing compatible services are
+left running. A second combined invocation exits safely rather than controlling the active invocation. Missing
+runtimes or models never trigger a download: run `dictate setup --install-dependencies` explicitly.
 
 ## Command contract
 
@@ -110,7 +66,8 @@ dictate serve
 - `devices` lists local input identifiers and display names without recording.
 - `doctor` prints content-free readiness failures and platform-specific remediation. On macOS, it requests
   Microphone access through the native authorization API without opening, sampling, or retaining audio.
-- `serve` starts the local push-to-talk pipeline only after required local readiness checks pass.
+- `dictate` starts the local inference dependencies and push-to-talk pipeline after required local readiness checks pass.
+- `serve` is a compatibility alias for `dictate`.
 
 The repository's acceptance tests exercise the service through deterministic local boundaries. On macOS, Dictate
 captures and revalidates the original application, window, and editable text target before placement. Verified

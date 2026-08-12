@@ -69,6 +69,14 @@ class CliTests(unittest.TestCase):
         self.assertEqual("", stdout)
         self.assertIn("whisper-model: failed", stderr)
 
+    @patch("dictate.cli.CombinedStartup")
+    @patch("dictate.cli.current_platform", return_value=object())
+    def test_bare_command_and_serve_use_combined_startup(self, _platform: object, startup_type: object) -> None:
+        startup_type.return_value.run.return_value = 0  # type: ignore[attr-defined]
+        self.assertEqual(0, self.invoke([])[0])
+        self.assertEqual(0, self.invoke(["serve"])[0])
+        self.assertEqual(2, startup_type.call_count)  # type: ignore[attr-defined]
+
 
 if __name__ == "__main__":
     unittest.main()
