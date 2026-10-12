@@ -11,7 +11,13 @@ from dictate.asr import WhisperServer
 from dictate.audio import Recorder, list_input_devices
 from dictate.cleanup import OllamaClient
 from dictate.config import Preferences, load_preferences
-from dictate.dictionary import global_dictionary_path, terms_for_paths
+from dictate.dictionary import (
+    add_dictionary_term,
+    global_dictionary_path,
+    load_dictionary,
+    remove_dictionary_term,
+    terms_for_paths,
+)
 from dictate.installer import InstallerCoordinator
 from dictate.platform import current_platform
 from dictate.readiness import LocalReadiness
@@ -27,12 +33,22 @@ def build_parser() -> argparse.ArgumentParser:
         ("serve", "start the local dictation service"),
         ("doctor", "run content-free readiness diagnostics"),
         ("devices", "list audio input devices"),
+        ("dictionary", "manage the global dictation vocabulary"),
     ):
         command = commands.add_parser(name, help=help_text)
         if name == "setup":
             command.add_argument("--install-dependencies", action="store_true", help="explicitly acquire missing local default dependencies")
         if name == "serve":
             command.add_argument("--recover", action="store_true", help="print and clear an injected in-process recovery result (test-only)")
+        if name == "dictionary":
+            dictionary_commands = command.add_subparsers(dest="dictionary_command", required=True)
+            dictionary_commands.add_parser("list", help="list global vocabulary terms")
+            for action, help_text in (
+                ("add", "add a global vocabulary term"),
+                ("remove", "remove a global vocabulary term"),
+            ):
+                dictionary_command = dictionary_commands.add_parser(action, help=help_text)
+                dictionary_command.add_argument("term")
     return parser
 
 
@@ -83,6 +99,28 @@ def _serve(preferences: Preferences) -> int:
     return CombinedStartup(preferences, current_platform()).run()
 
 
+def _dictionary(arguments: argparse.Namespace) -> int:
+    path = global_dictionary_path()
+    try:
+        if arguments.dictionary_command == "list":
+            terms = load_dictionary(path).values()
+            for term in terms:
+                print(term)
+            return 0
+        if arguments.dictionary_command == "add":
+            add_dictionary_term(path, arguments.term)
+            print("dictionary: added")
+            return 0
+        if remove_dictionary_term(path, arguments.term):
+            print("dictionary: removed")
+            return 0
+        print("dictionary: term is not present", file=sys.stderr)
+        return 1
+    except (OSError, UnicodeError, ValueError):
+        print("dictionary: could not update the global vocabulary", file=sys.stderr)
+        return 1
+
+
 def main(argv: list[str] | None = None, *, recovery: object | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "serve" and args.recover:
@@ -94,6 +132,8 @@ def main(argv: list[str] | None = None, *, recovery: object | None = None) -> in
             return 1
         print(result)
         return 0
+    if args.command == "dictionary":
+        return _dictionary(args)
     path = preferences_path()
     try:
         preferences = load_preferences(path)
@@ -118,4 +158,3 @@ def main(argv: list[str] | None = None, *, recovery: object | None = None) -> in
     if args.command in ("setup", "doctor"):
         return _report_readiness(args.command, preferences)
     return _serve(preferences)
-
