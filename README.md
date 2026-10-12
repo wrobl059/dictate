@@ -57,6 +57,9 @@ dictate setup --install-dependencies
 dictate devices
 dictate doctor
 dictate serve
+dictate dictionary list
+dictate dictionary add "term"
+dictate dictionary remove "term"
 ```
 
 - `setup` only verifies the required local components. It never downloads or changes host software; missing
@@ -68,6 +71,9 @@ dictate serve
   Microphone access through the native authorization API without opening, sampling, or retaining audio.
 - `dictate` starts the local inference dependencies and push-to-talk pipeline after required local readiness checks pass.
 - `serve` is a compatibility alias for `dictate`.
+- `dictionary` manages the newline-delimited global vocabulary at
+  `~/.config/dictate/dictionary.txt`. `list` prints its terms, while `add` and `remove` validate and atomically
+  update it. Vocabulary terms are intentionally user-authored content and are only printed by `dictionary list`.
 
 The repository's acceptance tests exercise the service through deterministic local boundaries. On macOS, Dictate
 captures and revalidates the original application, window, and editable text target before placement. Verified
@@ -118,5 +124,4 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 ```
 
 The acceptance suite includes offline socket blocking, focus safety, privacy lifecycle checks, the common platform matrix, and a deterministic synthetic short-audio latency fixture.
-
 

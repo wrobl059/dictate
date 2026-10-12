@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import contextlib
 import io
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from dictate.audio import AudioInputDevice
@@ -77,7 +79,23 @@ class CliTests(unittest.TestCase):
         self.assertEqual(0, self.invoke(["serve"])[0])
         self.assertEqual(2, startup_type.call_count)  # type: ignore[attr-defined]
 
+    @patch("dictate.cli.global_dictionary_path")
+    def test_dictionary_cli_manages_global_vocabulary(self, dictionary_path: object) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dictionary_path.return_value = Path(directory) / "dictionary.txt"  # type: ignore[attr-defined]
+            self.assertEqual((0, "dictionary: added\n", ""), self.invoke(["dictionary", "add", "Ollama"]))
+            self.assertEqual((0, "Ollama\n", ""), self.invoke(["dictionary", "list"]))
+            self.assertEqual((0, "dictionary: removed\n", ""), self.invoke(["dictionary", "remove", "ollama"]))
+
+    @patch("dictate.cli.global_dictionary_path")
+    def test_dictionary_cli_returns_content_free_error_for_invalid_terms(self, dictionary_path: object) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dictionary_path.return_value = Path(directory) / "dictionary.txt"  # type: ignore[attr-defined]
+            result, stdout, stderr = self.invoke(["dictionary", "add", "a" * 121])
+        self.assertEqual(1, result)
+        self.assertEqual("", stdout)
+        self.assertEqual("dictionary: could not update the global vocabulary\n", stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
-

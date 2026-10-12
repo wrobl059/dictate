@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from dictate.config import Preferences, load_preferences, save_preferences
-from dictate.dictionary import load_dictionary, merge_dictionaries
+from dictate.dictionary import add_dictionary_term, load_dictionary, merge_dictionaries, remove_dictionary_term
 from dictate.session import DictationSession, SessionState
 
 
@@ -51,6 +51,22 @@ class ConfigDictionarySessionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "lines 1 and 2"):
                 load_dictionary(path)
 
+    def test_dictionary_edits_are_atomic_and_preserve_original_order(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "dictionary.txt"
+            path.write_text("Ollama\nDictate\n", encoding="utf-8")
+            add_dictionary_term(path, "GitHub")
+            self.assertTrue(remove_dictionary_term(path, "ollama"))
+            self.assertEqual("Dictate\nGitHub\n", path.read_text(encoding="utf-8"))
+            self.assertFalse(list(root.glob(".dictionary.txt.*")))
+
+    def test_dictionary_add_rejects_terms_that_would_be_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "dictionary.txt"
+            with self.assertRaisesRegex(ValueError, "at most 120"):
+                add_dictionary_term(path, "a" * 121)
+
     def test_every_terminal_state_clears_content(self) -> None:
         for terminal in (SessionState.INSERTED, SessionState.RECOVERY, SessionState.FAILED):
             with self.subTest(terminal=terminal):
@@ -76,5 +92,4 @@ class ConfigDictionarySessionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
 
